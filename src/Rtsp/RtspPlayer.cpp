@@ -195,9 +195,22 @@ void RtspPlayer::handleResDESCRIBE(const Parser& parser) {
         _content_base.pop_back();
     }
 
-    SdpParser sdpParser(parser.Content());
     //解析sdp
-    _sdp_track = sdpParser.getAvailableTrack();
+    SdpParser sdpParser(parser.Content());
+
+    auto track_type = (*this)[kTrackType];
+    if (track_type == "TrackVideo") {
+        auto track = sdpParser.getTrack(TrackVideo);
+        _sdp_track.emplace_back(track);
+    }
+    else if (track_type == "TrackAudio") {
+        auto track = sdpParser.getTrack(TrackAudio);
+        _sdp_track.emplace_back(track);
+    }
+    else {
+        _sdp_track = sdpParser.getAvailableTrack();
+    }
+
     if (_sdp_track.empty()) {
         throw std::runtime_error("无有效的Sdp Track");
     }
