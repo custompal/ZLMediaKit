@@ -308,7 +308,6 @@ const string kBeatIntervalMS = "beat_interval_ms";
 const string kMaxAnalysisMS = "max_analysis_ms";
 const string kBenchmarkMode = "benchmark_mode";
 const string kTrackType = "track_type";
-
 }
 
 }  // namespace mediakit

@@ -38,7 +38,9 @@
 #include "Rtp/RtpServer.h"
 #endif
 #ifdef ENABLE_WEBRTC
-#include "../webrtc/WebRtcTransport.h"
+#include "../webrtc/WebRtcPlayer.h"
+#include "../webrtc/WebRtcPusher.h"
+#include "../webrtc/WebRtcEchoTest.h"
 #endif
 
 using namespace toolkit;
@@ -1185,11 +1187,8 @@ void installWebApi() {
 
 #ifdef ENABLE_WEBRTC
     api_regist("/index/api/webrtc",[](API_ARGS_STRING_ASYNC){
-        CHECK_ARGS("app", "stream");
-
         auto offer_sdp = allArgs.getArgs();
         auto type = allArgs["type"];
-        MediaInfo info(StrPrinter << "rtc://" << allArgs["Host"] << "/" << allArgs["app"] << "/" << allArgs["stream"] << "?" << allArgs.getParser().Params());
 
         //设置返回类型
         headerOut["Content-Type"] = HttpFileManager::getContentType(".json");
@@ -1197,6 +1196,9 @@ void installWebApi() {
         headerOut["Access-Control-Allow-Origin"] = "*";
 
         if (type.empty() || !strcasecmp(type.data(), "play")) {
+            CHECK_ARGS("app", "stream");
+            MediaInfo info(StrPrinter << "rtc://" << allArgs["Host"] << "/" << allArgs["app"] << "/" << allArgs["stream"] << "?" << allArgs.getParser().Params());
+
             auto session = static_cast<TcpSession*>(&sender);
             auto session_ptr = session->shared_from_this();
             Broadcast::AuthInvoker authInvoker = [invoker, offer_sdp, val, info, headerOut, session_ptr](const string &err) mutable {
@@ -1219,8 +1221,7 @@ void installWebApi() {
                     }
                     //还原成rtc，目的是为了hook时识别哪种播放协议
                     info._schema = "rtc";
-                    auto rtc = WebRtcTransportImp::create(EventPollerPool::Instance().getPoller());
-                    rtc->attach(src, info, true);
+                    auto rtc = WebRtcPlayer::create(EventPollerPool::Instance().getPoller(), src, info);
                     val["sdp"] = rtc->getAnswerSdp(offer_sdp);
                     val["type"] = "answer";
                     invoker(200, headerOut, val.toStyledString());
@@ -1237,6 +1238,9 @@ void installWebApi() {
         }
 
         if (!strcasecmp(type.data(), "push")) {
+            CHECK_ARGS("app", "stream");
+            MediaInfo info(StrPrinter << "rtc://" << allArgs["Host"] << "/" << allArgs["app"] << "/" << allArgs["stream"] << "?" << allArgs.getParser().Params());
+
             Broadcast::PublishAuthInvoker authInvoker = [invoker, offer_sdp, val, info, headerOut](const string &err, bool enableHls, bool enableMP4) mutable {
                 try {
                     auto src = dynamic_pointer_cast<RtspMediaSource>(MediaSource::find(RTSP_SCHEMA, info._vhost, info._app, info._streamid));
@@ -1248,9 +1252,8 @@ void installWebApi() {
                     }
                     auto push_src = std::make_shared<RtspMediaSourceImp>(info._vhost, info._app, info._streamid);
                     push_src->setProtocolTranslation(enableHls, enableMP4);
-                    auto rtc = WebRtcTransportImp::create(EventPollerPool::Instance().getPoller());
+                    auto rtc = WebRtcPusher::create(EventPollerPool::Instance().getPoller(), push_src, info);
                     push_src->setListener(rtc);
-                    rtc->attach(push_src, info, false);
                     val["sdp"] = rtc->getAnswerSdp(offer_sdp);
                     val["type"] = "answer";
                     invoker(200, headerOut, val.toStyledString());
@@ -1269,6 +1272,14 @@ void installWebApi() {
                 GET_CONFIG(bool, toMP4, General::kPublishToMP4);
                 authInvoker("", toHls, toMP4);
             }
+            return;
+        }
+
+        if (!strcasecmp(type.data(), "echo")) {
+            auto rtc = WebRtcEchoTest::create(EventPollerPool::Instance().getPoller());
+            val["sdp"] = rtc->getAnswerSdp(offer_sdp);
+            val["type"] = "answer";
+            invoker(200, headerOut, val.toStyledString());
             return;
         }
 
