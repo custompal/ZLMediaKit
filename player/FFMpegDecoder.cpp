@@ -144,7 +144,7 @@ FFmpegDecoder::FFmpegDecoder(const Track::Ptr &track) {
     switch (track->getCodecId()) {
         case CodecH264:
             codec_default = getCodec(AV_CODEC_ID_H264);
-            codec = getCodec("libopenh264", AV_CODEC_ID_H264, "h264_videotoolbox", "h264_cuvid");
+            codec = getCodec("libopenh264", AV_CODEC_ID_H264, "h264_videotoolbox", "h264_cuvid", "h264_qsv");
             break;
         case CodecH265:
             codec_default = getCodec(AV_CODEC_ID_HEVC);
