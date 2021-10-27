@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -281,7 +281,7 @@ uint64_t NtpStamp::getNtpStamp_l(uint32_t rtp_stamp, uint32_t sample_rate) {
         return _last_ntp_stamp_ms;
     }
     //不明原因的时间戳回退，直接返回上次值
-    WarnL << "rtp stamp abnormal reduced:" << _last_rtp_stamp << " -> " << rtp_stamp;
+    //WarnL << "rtp stamp abnormal reduced:" << _last_rtp_stamp << " -> " << rtp_stamp;
     return _last_ntp_stamp_ms;
 }
 
