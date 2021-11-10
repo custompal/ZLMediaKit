@@ -31,14 +31,7 @@ bool MediaSink::addTrack(const Track::Ptr &track_in) {
             //音频被全局忽略
             return false;
         }
-    } else {
-        //是否添加静音音频
-        GET_CONFIG(bool, addMuteAudio, General::kAddMuteAudio);
-        if (addMuteAudio && track_in->getTrackType() == TrackVideo) {
-            addMuteAudioTrack();
-        }
     }
-    lock_guard<recursive_mutex> lck(_mtx);
     if (_all_track_ready) {
         WarnL << "all track is ready, add this track too late!";
         return false;
@@ -46,10 +39,6 @@ bool MediaSink::addTrack(const Track::Ptr &track_in) {
     //克隆Track，只拷贝其数据，不拷贝其数据转发关系
     auto track = track_in->clone();
     auto track_type = track->getTrackType();
-    if (track_type == TrackAudio) {
-        //确保添加非静音音频track时，取消之前的静音音频track
-        _mute_audio_maker = nullptr;
-    }
     _track_map[track_type] = track;
     _track_ready_callback[track_type] = [this, track]() {
         onTrackReady(track);
@@ -74,7 +63,6 @@ bool MediaSink::addTrack(const Track::Ptr &track_in) {
 }
 
 void MediaSink::resetTracks() {
-    lock_guard<recursive_mutex> lck(_mtx);
     _all_track_ready = false;
     _track_map.clear();
     _track_ready_callback.clear();
@@ -84,7 +72,6 @@ void MediaSink::resetTracks() {
 }
 
 bool MediaSink::inputFrame(const Frame::Ptr &frame) {
-    lock_guard<recursive_mutex> lck(_mtx);
     auto it = _track_map.find(frame->getTrackType());
     if (it == _track_map.end()) {
         return false;
@@ -145,7 +132,6 @@ void MediaSink::checkTrackIfReady(const Track::Ptr &track){
 }
 
 void MediaSink::addTrackCompleted(){
-    lock_guard<recursive_mutex> lck(_mtx);
     _max_track_size = _track_map.size();
     checkTrackIfReady(nullptr);
 }
@@ -172,8 +158,7 @@ void MediaSink::emitAllTrackReady() {
 
     if (!_track_map.empty()) {
         //最少有一个有效的Track
-        _all_track_ready = true;
-        onAllTrackReady();
+        onAllTrackReady_l();
 
         //全部Track就绪，我们一次性把之前的帧输出
         for(auto &pr : _frame_unread){
@@ -189,9 +174,18 @@ void MediaSink::emitAllTrackReady() {
     }
 }
 
+void MediaSink::onAllTrackReady_l() {
+    //是否添加静音音频
+    GET_CONFIG(bool, add_mute_audio, General::kAddMuteAudio);
+    if (add_mute_audio) {
+        addMuteAudioTrack();
+    }
+    onAllTrackReady();
+    _all_track_ready = true;
+}
+
 vector<Track::Ptr> MediaSink::getTracks(bool trackReady) const{
     vector<Track::Ptr> ret;
-    lock_guard<recursive_mutex> lck(_mtx);
     for (auto &pr : _track_map){
         if(trackReady && !pr.second->ready()){
             continue;
@@ -254,19 +248,25 @@ bool MuteAudioMaker::inputFrame(const Frame::Ptr &frame) {
 }
 
 bool MediaSink::addMuteAudioTrack() {
-    if (getTrack(TrackAudio, false)) {
-        WarnL << "audio track already existed";
+    GET_CONFIG(bool, enabel_audio, General::kEnableAudio);
+    if (!enabel_audio) {
         return false;
     }
-    if (addTrack(std::make_shared<AACTrack>())) {
-        _mute_audio_maker = std::make_shared<MuteAudioMaker>();
-        _mute_audio_maker->addDelegate(std::make_shared<FrameWriterInterfaceHelper>([this](const Frame::Ptr &frame) {
-            return inputFrame(frame);
-        }));
-        return true;
+    if (_track_map.find(TrackAudio) != _track_map.end()) {
+        return false;
     }
-    return false;
+    auto audio = std::make_shared<AACTrack>(makeAacConfig(MUTE_ADTS_DATA, ADTS_HEADER_LEN));
+    _track_map[audio->getTrackType()] = audio;
+    audio->addDelegate(std::make_shared<FrameWriterInterfaceHelper>([this](const Frame::Ptr &frame) {
+        return onTrackFrame(frame);
+    }));
+    _mute_audio_maker = std::make_shared<MuteAudioMaker>();
+    _mute_audio_maker->addDelegate(std::make_shared<FrameWriterInterfaceHelper>([audio](const Frame::Ptr &frame) {
+        return audio->inputFrame(frame);
+    }));
+    onTrackReady(audio);
+    TraceL << "mute aac track added";
+    return true;
 }
-
 
 }//namespace mediakit
