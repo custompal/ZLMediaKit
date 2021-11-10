@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -333,6 +333,8 @@ extern const string kBeatIntervalMS;
 extern const string kBenchmarkMode;
 //播放器在触发播放成功事件时，是否等待所有track ready时再回调
 extern const string kWaitTrackReady;
+// Track类型
+extern const string kTrackType;
 }
 }  // namespace mediakit
 

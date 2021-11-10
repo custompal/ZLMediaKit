@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -307,6 +307,7 @@ const string kMediaTimeoutMS = "media_timeout_ms";
 const string kBeatIntervalMS = "beat_interval_ms";
 const string kBenchmarkMode = "benchmark_mode";
 const string kWaitTrackReady = "wait_track_ready";
+const string kTrackType = "track_type";
 }
 
 }  // namespace mediakit
