@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -11,7 +11,16 @@
 #if defined(ENABLE_RTPPROXY)
 #include "PSDecoder.h"
 #include "mpeg-ps.h"
+#include "mpeg-ts-proto.h"
 namespace mediakit{
+
+static inline bool isAudio(int codecid) {
+    //暂时只碰到G711A/U的音频时钟频率不统一问题，其他AAC和Opus待测试，按正常处理
+    if (codecid == PSI_STREAM_AUDIO_G711A || codecid == PSI_STREAM_AUDIO_G711U) {
+        return true;
+    }
+    return false;
+}
 
 PSDecoder::PSDecoder() {
     _ps_demuxer = ps_demuxer_create([](void* param,
@@ -23,7 +32,12 @@ PSDecoder::PSDecoder() {
                                        const void* data,
                                        size_t bytes){
         PSDecoder *thiz = (PSDecoder *)param;
-        if(thiz->_on_decode){
+        if (thiz->_on_decode) {
+            if (isAudio(codecid)) {
+                if (0 == thiz->_audio_clock_rate)
+                    thiz->guessAudioClockRate(codecid, dts);
+                thiz->modifyAudioTimestamp(pts, dts);
+            }
             thiz->_on_decode(stream, codecid, flags, pts, dts, data, bytes);
         }
         return 0;
@@ -72,6 +86,28 @@ const char *PSDecoder::onSearchPacketTail(const char *data, size_t len) {
               << ", exception=" << ex.what()
               << ", hex=" << hexdump(data, MIN(len, 32));
         return nullptr;
+    }
+}
+
+void PSDecoder::guessAudioClockRate(int codecid, int64_t dts) {
+    if (_first_audio_frame) {
+        _first_audio_frame = false;
+        _last_audio_dts = dts;
+    } else {
+        if (dts > _last_audio_dts && dts - _last_audio_dts < 10 * 90) { // 假定音频每帧间隔大于 10ms，如果是标准流，后一帧与前一帧音频时间戳之差必大于 10 * 90
+            if (codecid == PSI_STREAM_AUDIO_G711A || codecid == PSI_STREAM_AUDIO_G711U) { // 暂时只处理G711A/U
+                _audio_clock_rate = 8;
+                return;
+            }
+        }
+        _audio_clock_rate = 90;
+    }
+}
+
+void PSDecoder::modifyAudioTimestamp(int64_t &pts, int64_t &dts) {
+    if (_audio_clock_rate != 0 && _audio_clock_rate != 90) {
+        dts = (dts / _audio_clock_rate) * 90;
+        pts = dts;
     }
 }
 

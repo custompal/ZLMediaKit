@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -34,10 +34,18 @@ private:
     const char *onSearchPacketTail(const char *data, size_t len) override;
     ssize_t onRecvHeader(const char *, size_t) override { return 0; };
 
+    void guessAudioClockRate(int codecid, int64_t dts);
+    void modifyAudioTimestamp(int64_t &pts, int64_t &dts);
+
 private:
     void *_ps_demuxer = nullptr;
     onDecode _on_decode;
     onStream _on_stream;
+
+    //为了兼容部分设备ps流音频时钟频率不统一问题
+    int _audio_clock_rate = 0;
+    bool _first_audio_frame = true;
+    int64_t _last_audio_dts = 0;
 };
 
 }//namespace mediakit
