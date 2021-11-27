@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -61,9 +61,14 @@ CodecId RtpPayload::getCodecId(int pt) {
 
 static void getAttrSdp(const multimap<string, string> &attr, _StrPrinter &printer) {
     const map<string, string>::value_type *ptr = nullptr;
+    const map<string, string>::value_type *fmtp_ptr = nullptr;
     for (auto &pr : attr) {
         if (pr.first == "control") {
             ptr = &pr;
+            continue;
+        }
+        if (pr.first == "fmtp") {
+            fmtp_ptr = &pr;
             continue;
         }
         if (pr.second.empty()) {
@@ -71,6 +76,9 @@ static void getAttrSdp(const multimap<string, string> &attr, _StrPrinter &printe
         } else {
             printer << "a=" << pr.first << ":" << pr.second << "\r\n";
         }
+    }
+    if (fmtp_ptr) {
+        printer << "a=" << fmtp_ptr->first << ":" << fmtp_ptr->second << "\r\n";
     }
     if (ptr) {
         printer << "a=" << ptr->first << ":" << ptr->second << "\r\n";
