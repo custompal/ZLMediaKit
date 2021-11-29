@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
@@ -148,7 +148,7 @@ FFmpegDecoder::FFmpegDecoder(const Track::Ptr &track) {
             break;
         case CodecH265:
             codec_default = getCodec(AV_CODEC_ID_HEVC);
-            codec = getCodec(AV_CODEC_ID_HEVC, "hevc_videotoolbox", "hevc_cuvid");
+            codec = getCodec(AV_CODEC_ID_HEVC, "hevc_videotoolbox", "hevc_cuvid", "hevc_qsv");
             break;
         case CodecAAC:
             codec = getCodec(AV_CODEC_ID_AAC);

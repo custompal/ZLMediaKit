@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -292,8 +292,9 @@ void RtspSession::handleReq_RECORD(const Parser &parser){
     for (auto &track : _sdp_track) {
         if (track->_inited == false) {
             //还有track没有setup
-            shutdown(SockException(Err_shutdown, "track not setuped"));
-            return;
+            //shutdown(SockException(Err_shutdown, "track not setuped"));
+            //return;
+            continue;
         }
         rtp_info << "url=" << track->getControlUrl(_content_base) << ",";
     }
@@ -792,8 +793,9 @@ void RtspSession::handleReq_Play(const Parser &parser) {
     for (auto &track : _sdp_track) {
         if (track->_inited == false) {
             //还有track没有setup
-            shutdown(SockException(Err_shutdown, "track not setuped"));
-            return;
+            //shutdown(SockException(Err_shutdown, "track not setuped"));
+            //return;
+            continue;
         }
         track->_ssrc = play_src->getSsrc(track->_type);
         track->_seq = play_src->getSeqence(track->_type);
@@ -1168,6 +1170,15 @@ void RtspSession::updateRtcpContext(const RtpPacket::Ptr &rtp){
 }
 
 void RtspSession::sendRtpPacket(const RtspMediaSource::RingDataType &pkt) {
+    //过滤不需要发送的包
+    auto ptr = pkt->front();
+    if (ptr) {
+        int track_index = getTrackIndexByTrackType(ptr->type);
+        SdpTrack::Ptr &trackRef = _sdp_track[track_index];
+        if (!trackRef->_inited)
+            return;
+    }
+
     switch (_rtp_type) {
         case Rtsp::RTP_TCP: {
             size_t i = 0;
