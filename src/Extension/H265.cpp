@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -12,6 +12,54 @@
 #include "SPSParser.h"
 
 namespace mediakit{
+
+static const char *memfind(const char *buf, ssize_t len, const char *subbuf, ssize_t sublen) {
+    for (auto i = 0; i < len - sublen; ++i) {
+        if (memcmp(buf + i, subbuf, sublen) == 0) {
+            return buf + i;
+        }
+    }
+    return NULL;
+}
+
+static void
+splitH265(const char *ptr, size_t len, size_t prefix, const std::function<void(const char *, size_t, size_t)> &cb) {
+    auto start = ptr + prefix;
+    auto end = ptr + len;
+    size_t next_prefix;
+    while (true) {
+        auto next_start = memfind(start, end - start, "\x00\x00\x01", 3);
+        if (next_start) {
+            //找到下一帧
+            if (*(next_start - 1) == 0x00) {
+                //这个是00 00 00 01开头
+                next_start -= 1;
+                next_prefix = 4;
+            } else {
+                //这个是00 00 01开头
+                next_prefix = 3;
+            }
+
+            //只分离vps sps pps, idr不分离, 可能会影响客户端出图速率
+            int type = H265_TYPE(start[0]);
+            if (type == H265Frame::NAL_VPS || type == H265Frame::NAL_SPS || type == H265Frame::NAL_PPS) {
+                //记得加上本帧prefix长度
+                cb(start - prefix, next_start - start + prefix, prefix);
+                //搜索下一帧末尾的起始位置
+                start = next_start + next_prefix;
+                //记录下一帧的prefix长度
+                prefix = next_prefix;
+                continue;
+            } else {
+                cb(start - prefix, end - start + prefix, prefix);
+                break;
+            }
+        }
+        //未找到下一帧,这是最后一帧
+        cb(start - prefix, end - start + prefix, prefix);
+        break;
+    }
+}
 
 bool getHEVCInfo(const char * vps, size_t vps_len,const char * sps,size_t sps_len,int &iVideoWidth, int &iVideoHeight, float  &iVideoFps){
     T_GetBitContext tGetBitBuf;
@@ -95,7 +143,11 @@ bool H265Track::inputFrame(const Frame::Ptr &frame) {
         return inputFrame_l(frame);
     }
     bool ret = false;
+#if 0
     splitH264(frame->data(), frame->size(), frame->prefixSize(), [&](const char *ptr, size_t len, size_t prefix) {
+#else
+    splitH265(frame->data(), frame->size(), frame->prefixSize(), [&](const char *ptr, size_t len, size_t prefix) {
+#endif
         using H265FrameInternal = FrameInternal<H265FrameNoCacheAble>;
         H265FrameInternal::Ptr sub_frame = std::make_shared<H265FrameInternal>(frame, (char *) ptr, len, prefix);
         if (inputFrame_l(sub_frame)) {
