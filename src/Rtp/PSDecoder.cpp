@@ -33,6 +33,7 @@ PSDecoder::PSDecoder() {
                                        size_t bytes){
         PSDecoder *thiz = (PSDecoder *)param;
         if (thiz->_on_decode) {
+            //DebugL << "codec id: " << codecid << ", pts: " << pts << ", dts: " << dts;
             if (isAudio(codecid)) {
                 if (0 == thiz->_audio_clock_rate)
                     thiz->guessAudioClockRate(codecid, dts);
@@ -95,13 +96,18 @@ void PSDecoder::guessAudioClockRate(int codecid, int64_t dts) {
         _first_audio_frame = false;
         _last_audio_dts = dts;
     } else {
-        if (dts > _last_audio_dts && dts - _last_audio_dts < 10 * 90) { // 假定音频每帧间隔大于 10ms，如果是标准流，后一帧与前一帧音频时间戳之差必大于 10 * 90
-            if (codecid == PSI_STREAM_AUDIO_G711A || codecid == PSI_STREAM_AUDIO_G711U) { // 暂时只处理G711A/U
-                _audio_clock_rate = 8;
-                return;
+        do {
+            DebugL << "audio codec id: " << codecid << ", dts: " << dts << ", last dts: " << _last_audio_dts;
+            if (dts > _last_audio_dts && dts - _last_audio_dts < 10 * 90) { // 假定音频每帧间隔大于 10ms，如果是标准流，后一帧与前一帧音频时间戳之差必大于 10 * 90
+                if (codecid == PSI_STREAM_AUDIO_G711A || codecid == PSI_STREAM_AUDIO_G711U) { // 暂时只处理G711A/U
+                    _audio_clock_rate = 8;
+                    break;
+                }
             }
-        }
-        _audio_clock_rate = 90;
+            _audio_clock_rate = 90;
+        } while (0);
+
+        DebugL << "audio codec id: " << codecid << ", clock rate: " << _audio_clock_rate;
     }
 }
 
