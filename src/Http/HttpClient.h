@@ -61,9 +61,9 @@ public:
     /**
      * 发送http[s]请求
      * @param url 请求url
-     * @param fTimeOutSec 超时时间
+     * @param timeout_sec 超时时间
      */
-    virtual void sendRequest(const string &url, float fTimeOutSec);
+    virtual void sendRequest(const string &url, float timeout_sec);
 
     /**
      * 重置对象
@@ -105,6 +105,11 @@ public:
      * 获取请求url
      */
     const string &getUrl() const;
+
+    /**
+     * 判断是否正在等待响应
+     */
+    bool waitResponse() const;
 
 protected:
     /**
@@ -170,23 +175,25 @@ private:
     void clearResponse();
 
 protected:
-    bool _isHttps;
+    bool _is_https;
 
 private:
+    bool _complete = false;
     string _url;
     HttpHeader _header;
     HttpBody::Ptr _body;
     string _method;
     string _path;
-    string _lastHost;
-    Ticker _aliveTicker;
-    float _fTimeOutSec = 0;
+    string _last_host;
+    Ticker _recv_timeout_ticker;
+    Ticker _total_timeout_ticker;
+    float _timeout_second = 0;
 
     //recv
-    size_t _recvedBodySize;
-    ssize_t _totalBodySize;
+    size_t _recved_body_size;
+    ssize_t _total_body_size;
     Parser _parser;
-    std::shared_ptr<HttpChunkedSplitter> _chunkedSplitter;
+    std::shared_ptr<HttpChunkedSplitter> _chunked_splitter;
 };
 
 } /* namespace mediakit */
