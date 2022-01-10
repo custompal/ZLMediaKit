@@ -63,7 +63,7 @@ public:
      * @param url 请求url
      * @param timeout_sec 超时时间
      */
-    virtual void sendRequest(const string &url, float timeout_sec);
+    virtual void sendRequest(const string &url, float timeout_sec, float recv_timeout_sec = 3);
 
     /**
      * 重置对象
@@ -188,6 +188,7 @@ private:
     Ticker _recv_timeout_ticker;
     Ticker _total_timeout_ticker;
     float _timeout_second = 0;
+    float _recv_timeout_second = 0;
 
     //recv
     size_t _recved_body_size;

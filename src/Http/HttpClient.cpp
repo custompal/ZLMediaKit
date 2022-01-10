@@ -15,7 +15,8 @@
 
 namespace mediakit {
 
-void HttpClient::sendRequest(const string &url, float timeout_sec) {
+void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_timeout_sec) {
+    _recv_timeout_second = recv_timeout_sec;
     clearResponse();
     _url = url;
     auto protocol = FindField(url.data(), NULL, "://");
@@ -104,6 +105,7 @@ void HttpClient::clearResponse() {
     _recved_body_size = 0;
     _total_body_size = 0;
     _parser.Clear();
+    _header.clear();
     _chunked_splitter = nullptr;
     _recv_timeout_ticker.resetTime();
     _total_timeout_ticker.resetTime();
@@ -188,7 +190,7 @@ ssize_t HttpClient::onRecvHeader(const char *data, size_t len) {
         }
         if (onRedirectUrl(new_url, _parser.Url() == "302")) {
             setMethod("GET");
-            HttpClient::sendRequest(new_url, _timeout_second);
+            HttpClient::sendRequest(new_url, _timeout_second, _recv_timeout_second);
             return 0;
         }
     }
@@ -278,7 +280,7 @@ void HttpClient::onFlush() {
 }
 
 void HttpClient::onManager() {
-    if (_recv_timeout_ticker.elapsedTime() > 3 * 1000 && _total_body_size < 0 && !_chunked_splitter) {
+    if (_recv_timeout_ticker.elapsedTime() > _recv_timeout_second * 1000 && _total_body_size < 0 && !_chunked_splitter) {
         //如果Content-Length未指定 但接收数据超时
         //则认为本次http请求完成
         onResponseCompleted_l();
