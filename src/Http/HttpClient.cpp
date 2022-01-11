@@ -41,6 +41,8 @@ void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_ti
     if (_path.empty()) {
         _path = "/";
     }
+    //重新设置header，防止上次请求的header干扰
+    _header = _user_set_header;
     auto pos = host.find('@');
     if (pos != string::npos) {
         //去除？后面的字符串
@@ -94,6 +96,7 @@ void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_ti
 void HttpClient::clear() {
     _url.clear();
     _header.clear();
+    _user_set_header.clear();
     _body.reset();
     _method.clear();
     _path.clear();
@@ -105,7 +108,6 @@ void HttpClient::clearResponse() {
     _recved_body_size = 0;
     _total_body_size = 0;
     _parser.Clear();
-    _header.clear();
     _chunked_splitter = nullptr;
     _recv_timeout_ticker.resetTime();
     _total_timeout_ticker.resetTime();
@@ -117,14 +119,14 @@ void HttpClient::setMethod(string method) {
 }
 
 void HttpClient::setHeader(HttpHeader header) {
-    _header = std::move(header);
+    _user_set_header = std::move(header);
 }
 
 HttpClient &HttpClient::addHeader(string key, string val, bool force) {
     if (!force) {
-        _header.emplace(std::move(key), std::move(val));
+        _user_set_header.emplace(std::move(key), std::move(val));
     } else {
-        _header[std::move(key)] = std::move(val);
+        _user_set_header[std::move(key)] = std::move(val);
     }
     return *this;
 }
