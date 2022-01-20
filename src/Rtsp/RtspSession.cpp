@@ -1199,7 +1199,7 @@ void RtspSession::updateRtcpContext(const RtpPacket::Ptr &rtp){
 
 void RtspSession::sendRtpPacket(const RtspMediaSource::RingDataType &pkt) {
     //过滤不需要发送的包
-    auto ptr = pkt->front();
+    auto &ptr = pkt->front();
     if (ptr) {
         int track_index = getTrackIndexByTrackType(ptr->type);
         SdpTrack::Ptr &trackRef = _sdp_track[track_index];
