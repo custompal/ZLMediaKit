@@ -32,9 +32,9 @@ API_EXPORT void API_CALL mk_http_downloader_release(mk_http_downloader ctx) {
 API_EXPORT void API_CALL mk_http_downloader_start(mk_http_downloader ctx, const char *url, const char *file, on_mk_download_complete cb, void *user_data) {
     assert(ctx && url && file);
     HttpDownloader::Ptr *obj = (HttpDownloader::Ptr *) ctx;
-    (*obj)->setOnResult([cb, user_data](ErrCode code, const string &errMsg, const string &filePath) {
+    (*obj)->setOnResult([cb, user_data](const SockException &ex, const string &filePath) {
         if (cb) {
-            cb(user_data, code, errMsg.data(), filePath.data());
+            cb(user_data, ex.getErrCode(), ex.what(), filePath.data());
         }
     });
     (*obj)->startDownload(url, file, false);
@@ -139,6 +139,7 @@ API_EXPORT void API_CALL mk_http_requester_set_cb(mk_http_requester ctx,on_mk_ht
 API_EXPORT void API_CALL mk_http_requester_start(mk_http_requester ctx,const char *url, float timeout_second){
     assert(ctx && url && url[0] && timeout_second > 0);
     HttpRequester::Ptr *obj = (HttpRequester::Ptr *)ctx;
-    (*obj)->sendRequest(url,timeout_second);
+    (*obj)->setCompleteTimeout(timeout_second * 1000);
+    (*obj)->sendRequest(url);
 }
 

@@ -15,8 +15,7 @@
 
 namespace mediakit {
 
-void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_timeout_sec) {
-    _recv_timeout_second = recv_timeout_sec;
+void HttpClient::sendRequest(const string &url) {
     clearResponse();
     _url = url;
     auto protocol = FindField(url.data(), NULL, "://");
@@ -73,7 +72,6 @@ void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_ti
     bool host_changed = (_last_host != host + ":" + to_string(port)) || (_is_https != is_https);
     _last_host = host + ":" + to_string(port);
     _is_https = is_https;
-    _timeout_second = timeout_sec;
 
     auto cookies = HttpCookieStorage::Instance().get(_last_host, _path);
     _StrPrinter printer;
@@ -86,7 +84,7 @@ void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_ti
     }
 
     if (!alive() || host_changed) {
-        startConnect(host, port, timeout_sec);
+        startConnect(host, port, _wait_header_ms);
     } else {
         SockException ex;
         onConnect_l(ex);
@@ -95,22 +93,22 @@ void HttpClient::sendRequest(const string &url, float timeout_sec, float recv_ti
 
 void HttpClient::clear() {
     _url.clear();
-    _header.clear();
     _user_set_header.clear();
     _body.reset();
     _method.clear();
-    _path.clear();
     clearResponse();
 }
 
 void HttpClient::clearResponse() {
     _complete = false;
+    _header_recved = false;
     _recved_body_size = 0;
     _total_body_size = 0;
     _parser.Clear();
     _chunked_splitter = nullptr;
-    _recv_timeout_ticker.resetTime();
-    _total_timeout_ticker.resetTime();
+    _wait_header.resetTime();
+    _wait_body.resetTime();
+    _wait_complete.resetTime();
     HttpRequestSplitter::reset();
 }
 
@@ -143,6 +141,14 @@ const Parser &HttpClient::response() const {
     return _parser;
 }
 
+ssize_t HttpClient::responseBodyTotalSize() const {
+    return _total_body_size;
+}
+
+size_t HttpClient::responseBodySize() const {
+    return _recved_body_size;
+}
+
 const string &HttpClient::getUrl() const {
     return _url;
 }
@@ -152,9 +158,8 @@ void HttpClient::onConnect(const SockException &ex) {
 }
 
 void HttpClient::onConnect_l(const SockException &ex) {
-    _recv_timeout_ticker.resetTime();
     if (ex) {
-        onDisconnect(ex);
+        onResponseCompleted_l(ex);
         return;
     }
 
@@ -164,22 +169,19 @@ void HttpClient::onConnect_l(const SockException &ex) {
         printer << pr.first + ": ";
         printer << pr.second + "\r\n";
     }
+    _header.clear();
+    _path.clear();
     SockSender::send(printer << "\r\n");
     onFlush();
 }
 
 void HttpClient::onRecv(const Buffer::Ptr &pBuf) {
-    _recv_timeout_ticker.resetTime();
+    _wait_body.resetTime();
     HttpRequestSplitter::input(pBuf->data(), pBuf->size());
 }
 
 void HttpClient::onErr(const SockException &ex) {
-    if (ex.getErrCode() == Err_eof && _total_body_size < 0) {
-        //如果Content-Length未指定 但服务器断开链接
-        //则认为本次http请求完成
-        onResponseCompleted_l();
-    }
-    onDisconnect(ex);
+    onResponseCompleted_l(ex);
 }
 
 ssize_t HttpClient::onRecvHeader(const char *data, size_t len) {
@@ -187,46 +189,49 @@ ssize_t HttpClient::onRecvHeader(const char *data, size_t len) {
     if (_parser.Url() == "302" || _parser.Url() == "301") {
         auto new_url = _parser["Location"];
         if (new_url.empty()) {
-            shutdown(SockException(Err_shutdown, "未找到Location字段(跳转url)"));
-            return 0;
+            throw invalid_argument("未找到Location字段(跳转url)");
         }
         if (onRedirectUrl(new_url, _parser.Url() == "302")) {
-            setMethod("GET");
-            HttpClient::sendRequest(new_url, _timeout_second, _recv_timeout_second);
+            HttpClient::sendRequest(new_url);
             return 0;
         }
     }
 
     checkCookie(_parser.getHeader());
-    _total_body_size = onResponseHeader(_parser.Url(), _parser.getHeader());
-
-    if (!_parser["Content-Length"].empty()) {
-        //有Content-Length字段时忽略onResponseHeader的返回值
-        _total_body_size = atoll(_parser["Content-Length"].data());
-    }
+    onResponseHeader(_parser.Url(), _parser.getHeader());
+    _header_recved = true;
 
     if (_parser["Transfer-Encoding"] == "chunked") {
         //如果Transfer-Encoding字段等于chunked，则认为后续的content是不限制长度的
         _total_body_size = -1;
         _chunked_splitter = std::make_shared<HttpChunkedSplitter>([this](const char *data, size_t len) {
             if (len > 0) {
-                auto recved_body_size = _recved_body_size + len;
-                onResponseBody(data, len, recved_body_size, SIZE_MAX);
-                _recved_body_size = recved_body_size;
+                _recved_body_size += len;
+                onResponseBody(data, len);
             } else {
-                onResponseCompleted_l();
+                _total_body_size = _recved_body_size;
+                onResponseCompleted_l(SockException(Err_success, "success"));
             }
         });
+        //后续为源源不断的body
+        return -1;
+    }
+
+    if (!_parser["Content-Length"].empty()) {
+        //有Content-Length字段时忽略onResponseHeader的返回值
+        _total_body_size = atoll(_parser["Content-Length"].data());
+    } else {
+        _total_body_size = -1;
     }
 
     if (_total_body_size == 0) {
         //后续没content，本次http请求结束
-        onResponseCompleted_l();
+        onResponseCompleted_l(SockException(Err_success, "success"));
         return 0;
     }
 
-    //当_totalBodySize != 0时到达这里，代表后续有content
-    //虽然我们在_totalBodySize >0 时知道content的确切大小，
+    //当_total_body_size != 0时到达这里，代表后续有content
+    //虽然我们在_total_body_size >0 时知道content的确切大小，
     //但是由于我们没必要等content接收完毕才回调onRecvContent(因为这样浪费内存并且要多次拷贝数据)
     //所以返回-1代表我们接下来分段接收content
     _recved_body_size = 0;
@@ -238,34 +243,33 @@ void HttpClient::onRecvContent(const char *data, size_t len) {
         _chunked_splitter->input(data, len);
         return;
     }
-    auto recved_body_size = _recved_body_size + len;
+    _recved_body_size += len;
     if (_total_body_size < 0) {
-        //不限长度的content,最大支持SIZE_MAX个字节
-        onResponseBody(data, len, recved_body_size, SIZE_MAX);
-        _recved_body_size = recved_body_size;
+        //不限长度的content
+        onResponseBody(data, len);
         return;
     }
 
     //固定长度的content
-    if (recved_body_size < (size_t) _total_body_size) {
+    if (_recved_body_size < (size_t) _total_body_size) {
         //content还未接收完毕
-        onResponseBody(data, len, recved_body_size, _total_body_size);
-        _recved_body_size = recved_body_size;
+        onResponseBody(data, len);
         return;
     }
 
-    //content接收完毕
-    onResponseBody(data, _total_body_size - _recved_body_size, _total_body_size, _total_body_size);
-    bool bigger_than_expected = recved_body_size > (size_t) _total_body_size;
-    onResponseCompleted_l();
-    if (bigger_than_expected) {
-        //声明的content数据比真实的小，那么我们只截取前面部分的并断开链接
-        shutdown(SockException(Err_shutdown, "http response content size bigger than expected"));
+    if (_recved_body_size == (size_t)_total_body_size) {
+        //content接收完毕
+        onResponseBody(data, len);
+        onResponseCompleted_l(SockException(Err_success, "success"));
+        return;
     }
+
+    //声明的content数据比真实的小，断开链接
+    onResponseBody(data, len);
+    throw invalid_argument("http response content size bigger than expected");
 }
 
 void HttpClient::onFlush() {
-    _recv_timeout_ticker.resetTime();
     GET_CONFIG(uint32_t, send_buf_size, Http::kSendBufSize);
     while (_body && _body->remainSize() && !isSocketBusy()) {
         auto buffer = _body->readData(send_buf_size);
@@ -282,25 +286,69 @@ void HttpClient::onFlush() {
 }
 
 void HttpClient::onManager() {
-    if (_recv_timeout_ticker.elapsedTime() > _recv_timeout_second * 1000 && _total_body_size < 0 && !_chunked_splitter) {
-        //如果Content-Length未指定 但接收数据超时
-        //则认为本次http请求完成
-        onResponseCompleted_l();
+    //onManager回调在连接中或已连接状态才会调用
+
+    if (_wait_complete_ms > 0) {
+        //设置了总超时时间
+        if (!_complete && _wait_complete.elapsedTime() > _wait_complete_ms) {
+            //等待http回复完毕超时
+            shutdown(SockException(Err_timeout, "wait http response complete timeout"));
+            return;
+        }
+        return;
     }
 
-    if (waitResponse() && _timeout_second > 0 && _total_timeout_ticker.elapsedTime() > _timeout_second * 1000) {
-        //超时
-        shutdown(SockException(Err_timeout, "http request timeout"));
+    //未设置总超时时间
+    if (!_header_recved) {
+        //等待header中
+        if (_wait_header.elapsedTime() > _wait_header_ms) {
+            //等待header中超时
+            shutdown(SockException(Err_timeout, "wait http response header timeout"));
+            return;
+        }
+    } else if (_wait_body_ms > 0 && _wait_body.elapsedTime() > _wait_body_ms) {
+        //等待body中，等待超时
+        shutdown(SockException(Err_timeout, "wait http response body timeout"));
+        return;
     }
 }
 
-void HttpClient::onResponseCompleted_l() {
+void HttpClient::onResponseCompleted_l(const SockException &ex) {
+    if (_complete) {
+        return;
+    }
     _complete = true;
-    onResponseCompleted();
+    _wait_complete.resetTime();
+
+    if (!ex) {
+        //确认无疑的成功
+        onResponseCompleted(ex);
+        return;
+    }
+    //可疑的失败
+
+    if (_total_body_size > 0 && _recved_body_size >= _total_body_size) {
+        //回复header中有content-length信息，那么收到的body大于等于声明值则认为成功
+        onResponseCompleted(SockException(Err_success, "success"));
+        return;
+    }
+
+    if (_total_body_size == -1 && _recved_body_size > 0) {
+        //回复header中无content-length信息，那么收到一点body也认为成功
+        onResponseCompleted(SockException(Err_success, ex.what()));
+        return;
+    }
+
+    //确认无疑的失败
+    onResponseCompleted(ex);
 }
 
 bool HttpClient::waitResponse() const {
     return !_complete && alive();
+}
+
+bool HttpClient::isHttps() const {
+    return _is_https;
 }
 
 void HttpClient::checkCookie(HttpClient::HttpHeader &headers) {
@@ -338,6 +386,19 @@ void HttpClient::checkCookie(HttpClient::HttpHeader &headers) {
         }
         HttpCookieStorage::Instance().set(cookie);
     }
+}
+
+void HttpClient::setHeaderTimeout(size_t timeout_ms) {
+    CHECK(timeout_ms > 0);
+    _wait_header_ms = timeout_ms;
+}
+
+void HttpClient::setBodyTimeout(size_t timeout_ms) {
+    _wait_body_ms = timeout_ms;
+}
+
+void HttpClient::setCompleteTimeout(size_t timeout_ms) {
+    _wait_complete_ms = timeout_ms;
 }
 
 } /* namespace mediakit */

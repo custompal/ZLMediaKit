@@ -13,12 +13,11 @@
 namespace mediakit {
 
 void HttpClientImp::onConnect(const SockException &ex) {
-    if(!_is_https){
+    if (!isHttps()) {
         HttpClient::onConnect(ex);
     } else {
         TcpClientWithSSL<HttpClient>::onConnect(ex);
     }
-
 }
 
 } /* namespace mediakit */
