@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -198,7 +198,7 @@ void RtspPlayer::handleResDESCRIBE(const Parser& parser) {
     //解析sdp
     SdpParser sdpParser(parser.Content());
 
-    auto track_type = (*this)[kTrackType];
+    auto track_type = (*this)[Client::kTrackType];
     if (track_type == "TrackVideo") {
         auto track = sdpParser.getTrack(TrackVideo);
         _sdp_track.emplace_back(track);

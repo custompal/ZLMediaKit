@@ -340,6 +340,8 @@ extern const std::string kBeatIntervalMS;
 extern const std::string kBenchmarkMode;
 //播放器在触发播放成功事件时，是否等待所有track ready时再回调
 extern const std::string kWaitTrackReady;
+// Track类型
+extern const std::string kTrackType;
 }
 }  // namespace mediakit
 
