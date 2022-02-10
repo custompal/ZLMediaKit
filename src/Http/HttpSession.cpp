@@ -17,6 +17,8 @@
 #include "HttpConst.h"
 #include "Util/base64.h"
 #include "Util/SHA1.h"
+
+using namespace std;
 using namespace toolkit;
 
 namespace mediakit {
@@ -330,10 +332,10 @@ bool HttpSession::checkLiveStreamTS(const function<void()> &cb){
     });
 }
 
-//http-flv 链接格式:http://vhost-url:port/app/streamid.flv?key1=value1&key2=value2
+//http-flv 链接格式:http://vhost-url:port/app/streamid.live.flv?key1=value1&key2=value2
 bool HttpSession::checkLiveStreamFlv(const function<void()> &cb){
     auto start_pts = atoll(_parser.getUrlArgs()["starPts"].data());
-    return checkLiveStream(RTMP_SCHEMA, ".flv", [this, cb, start_pts](const MediaSource::Ptr &src) {
+    return checkLiveStream(RTMP_SCHEMA, ".live.flv", [this, cb, start_pts](const MediaSource::Ptr &src) {
         auto rtmp_src = dynamic_pointer_cast<RtmpMediaSource>(src);
         assert(rtmp_src);
         if (!cb) {
@@ -592,15 +594,20 @@ void HttpSession::sendResponse(int code,
         return;
     }
 
+    if (typeid(*this) == typeid(HttpSession) && !body->sendFile(getSock()->rawFD())) {
+        //http支持sendfile优化
+        return;
+    }
+
     GET_CONFIG(uint32_t, sendBufSize, Http::kSendBufSize);
-    if(body->remainSize() > sendBufSize){
+    if (body->remainSize() > sendBufSize) {
         //文件下载提升发送性能
         setSocketFlags();
     }
 
     //发送http body
-    AsyncSenderData::Ptr data = std::make_shared<AsyncSenderData>(shared_from_this(),body,bClose);
-    getSock()->setOnFlush([data](){
+    AsyncSenderData::Ptr data = std::make_shared<AsyncSenderData>(shared_from_this(), body, bClose);
+    getSock()->setOnFlush([data]() {
         return AsyncSender::onSocketFlushed(data);
     });
     AsyncSender::onSocketFlushed(data);

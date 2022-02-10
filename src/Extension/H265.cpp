@@ -11,7 +11,10 @@
 #include "H265.h"
 #include "SPSParser.h"
 
-namespace mediakit{
+using namespace std;
+using namespace toolkit;
+
+namespace mediakit {
 
 static const char *memfind(const char *buf, ssize_t len, const char *subbuf, ssize_t sublen) {
     for (auto i = 0; i < len - sublen; ++i) {
