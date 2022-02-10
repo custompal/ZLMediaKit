@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -114,14 +114,14 @@ extern const std::string kBroadcastReloadConfig;
     } while(0)
 
 //监听某个配置发送变更
-#define LISTEN_RELOAD_KEY(arg, key, ...)                                            \
-    do {                                                                            \
-        static ::toolkit::onceToken s_token_listen([](){                            \
-            ::toolkit::NoticeCenter::Instance().addListener(ReloadConfigTag,        \
-                Broadcast::kBroadcastReloadConfig,[](BroadcastReloadConfigArgs) {   \
-                __VA_ARGS__;                                                        \
-            });                                                                     \
-        });                                                                         \
+#define LISTEN_RELOAD_KEY(arg, key, ...)                                                    \
+    do {                                                                                    \
+        static ::toolkit::onceToken s_token_listen([](){                                    \
+            ::toolkit::NoticeCenter::Instance().addListener(ReloadConfigTag,                \
+                mediakit::Broadcast::kBroadcastReloadConfig,[](BroadcastReloadConfigArgs) { \
+                __VA_ARGS__;                                                                \
+            });                                                                             \
+        });                                                                                 \
     } while(0)
 
 #define GET_CONFIG(type, arg, key)                      \
