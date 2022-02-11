@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -48,6 +48,11 @@ public:
 
     MediaSinkInterface() = default;
     ~MediaSinkInterface() override = default;
+
+    /**
+     * 写入rtp负载数据
+     */
+    virtual bool inputRtpPayload(const Frame::Ptr &frame) { return false; }
 };
 
 /**

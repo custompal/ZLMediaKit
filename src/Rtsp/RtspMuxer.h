@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -82,7 +82,7 @@ private:
     void onRtp(RtpPacket::Ptr in, bool is_key);
     void trySyncTrack();
 
-private:
+protected:
     bool _live = true;
     uint32_t _rtp_stamp[TrackMax]{0};
     uint64_t _ntp_stamp[TrackMax]{0};
