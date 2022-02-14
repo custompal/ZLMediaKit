@@ -37,12 +37,16 @@ HlsMakerImp::HlsMakerImp(const string &m3u8_file,
 }
 
 HlsMakerImp::~HlsMakerImp() {
-    clearCache(false);
+    clearCache(false, true);
 }
 
-void HlsMakerImp::clearCache(bool immediately) {
+void HlsMakerImp::clearCache() {
+    clearCache(true, false);
+}
+
+void HlsMakerImp::clearCache(bool immediately, bool eof) {
     //录制完了
-    flushLastSegment(true);
+    flushLastSegment(eof);
     if (!isLive()) {
         return;
     }
@@ -117,7 +121,7 @@ void HlsMakerImp::onWriteHls(const std::string &data) {
         fwrite(data.data(), data.size(), 1, hls.get());
         hls.reset();
         if (_media_src) {
-            _media_src->registHls(data);
+            _media_src->setIndexFile(data);
         }
     } else {
         WarnL << "create hls file failed," << _path_hls << " " << get_uv_errmsg();
