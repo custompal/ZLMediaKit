@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -159,7 +159,7 @@ private:
     std::function<void(SEQ seq, T &packet)> _cb;
 };
 
-class RtpTrack : private PacketSortor<RtpPacket::Ptr>{
+class RtpTrack : public PacketSortor<RtpPacket::Ptr>{
 public:
     class BadRtpException : public std::invalid_argument {
     public:
