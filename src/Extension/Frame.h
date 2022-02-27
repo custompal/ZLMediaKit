@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -230,6 +230,7 @@ public:
     uint32_t _dts = 0;
     uint32_t _pts = 0;
     size_t _prefix_size = 0;
+    bool _pre_frame_lost = false;
     toolkit::BufferLikeString _buffer;
 
 private:

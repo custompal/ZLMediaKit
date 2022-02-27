@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -41,6 +41,8 @@ bool CommonRtpDecoder::inputRtp(const RtpPacket::Ptr &rtp, bool){
         //时间戳发生变化或者缓存超过MAX_FRAME_SIZE，则清空上帧数据
         if (!_frame->_buffer.empty()) {
             //有有效帧，则输出
+            if (_drop_flag)
+                _frame->_pre_frame_lost = true;
             RtpCodec::inputFrame(_frame);
         }
 
