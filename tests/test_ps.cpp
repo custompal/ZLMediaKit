@@ -1,25 +1,32 @@
 #include "mpeg-ts-proto.h"
 #include "Rtp/PSDecoder.h"
 
+using namespace std;
 using namespace toolkit;
 using namespace mediakit;
 
 int start_main(int argc, char *argv[]) {
     //设置日志
-    Logger::Instance().add(std::make_shared<ConsoleChannel>("ConsoleChannel"));
+    Logger::Instance().add(make_shared<ConsoleChannel>("ConsoleChannel"));
 
-    std::shared_ptr<FILE> read_fp(fopen("C:\\Users\\ChenRG\\Desktop\\bao.raw", "rb"), [](FILE *fp) {
+    const char *ps_file = "C:\\Users\\ChenRG\\Desktop\\bao.raw";
+    shared_ptr<FILE> read_fp(fopen(ps_file, "rb"), [](FILE *fp) {
         if (fp) {
             fclose(fp);
         }
     });
+    if (!read_fp) {
+        WarnL << "open " << ps_file << " failed!";
+        return -1;
+    }
+
     size_t len = 4 * 1024 * 1024;
-    std::shared_ptr<char> buf(new char[len], [](char *p) {
+    shared_ptr<char> buf(new char[len], [](char *p) {
         if (p)
             delete[] p;
     });
 
-    auto decoder = std::make_shared<PSDecoder>();
+    auto decoder = make_shared<PSDecoder>();
     static int64_t last_dts = 0;
     static bool first_frame = true;
     decoder->setOnDecode(
@@ -34,11 +41,11 @@ int start_main(int argc, char *argv[]) {
                     diff = dts - last_dts;
                     //if (diff == 0)
                     //    //WarnL << "g711a repeate dts: " << dts;
-                    //    std::cout << "g711a repeate dts: " << dts << std::endl;
+                    //    cout << "g711a repeate dts: " << dts << endl;
                     last_dts = dts;
                 }
                 //DebugL << "g711a bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
-                std::cout << "g711a bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff << std::endl;
+                cout << "g711a bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff << endl;
             }
 #else
             if (codecid == PSI_STREAM_H264) {
@@ -50,12 +57,11 @@ int start_main(int argc, char *argv[]) {
                     diff = dts - last_dts;
                     //if (diff == 0)
                     //    // WarnL << "h264 repeate dts: " << dts;
-                    //    std::cout << "h264 repeate dts: " << dts << std::endl;
+                    //    cout << "h264 repeate dts: " << dts << endl;
                     last_dts = dts;
                 }
                 // DebugL << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
-                std::cout << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff
-                          << std::endl;
+                cout << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff << endl;
             }
 #endif
         });
