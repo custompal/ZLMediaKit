@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -30,6 +30,10 @@ PSEncoderImp::PSEncoderImp(uint32_t ssrc, uint8_t payload_type) : MpegMuxer(true
 
 PSEncoderImp::~PSEncoderImp() {
     InfoL << this << " " << printSSRC(_rtp_encoder->getSsrc());
+}
+
+bool PSEncoderImp::inputRtpPayload(const mediakit::Frame::Ptr &frame) {
+    return _rtp_encoder->inputFrame(frame);
 }
 
 void PSEncoderImp::onWrite(std::shared_ptr<Buffer> buffer, uint32_t stamp, bool key_pos) {

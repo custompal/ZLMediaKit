@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -24,6 +24,12 @@ class PSEncoderImp : public MpegMuxer{
 public:
     PSEncoderImp(uint32_t ssrc, uint8_t payload_type = 96);
     ~PSEncoderImp() override;
+
+public:
+    /**
+     * 输入rtp负载数据
+     */
+    bool inputRtpPayload(const mediakit::Frame::Ptr &frame) override;
 
 protected:
     //rtp打包后回调
