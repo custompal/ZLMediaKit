@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -45,7 +45,9 @@ RtpPacket::Ptr RtpTrack::inputRtp(TrackType type, int sample_rate, uint8_t *ptr,
     }
     RtpHeader *header = (RtpHeader *) ptr;
     if (header->version != RtpPacket::kRtpVersion) {
-        throw BadRtpException("非法的rtp，version字段非法");
+        //throw BadRtpException("非法的rtp，version字段非法");
+        WarnL << "非法的rtp，version字段非法";
+        return nullptr;
     }
     if (!header->getPayloadSize(len)) {
         //无有效负载的rtp包
