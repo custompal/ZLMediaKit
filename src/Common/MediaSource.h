@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -110,6 +110,8 @@ public:
     virtual void startSendRtp(MediaSource &sender, const SendRtpArgs &args, const std::function<void(uint16_t, const toolkit::SockException &)> cb) { cb(0, toolkit::SockException(toolkit::Err_other, "not implemented"));};
     // 停止发送ps-rtp
     virtual bool stopSendRtp(MediaSource &sender, const std::string &ssrc) {return false; }
+    // 暂停/恢复发送ps-rtp
+    virtual bool pauseSendRtp(MediaSource &sender, const std::string &ssrc, bool pause) { return false; }
 
 private:
     toolkit::Timer::Ptr _async_close_timer;
@@ -293,6 +295,8 @@ public:
     void startSendRtp(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t, const toolkit::SockException &)> cb);
     // 停止发送ps-rtp
     bool stopSendRtp(const std::string &ssrc);
+    // 暂停/恢复发送ps-rtp
+    bool pauseSendRtp(const std::string &ssrc, bool pause);
 
     ////////////////static方法，查找或生成MediaSource////////////////
 

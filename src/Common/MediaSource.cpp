@@ -254,7 +254,15 @@ bool MediaSource::stopSendRtp(const string &ssrc) {
     return listener->stopSendRtp(*this, ssrc);
 }
 
-template<typename MAP, typename LIST, typename First, typename ...KeyTypes>
+bool MediaSource::pauseSendRtp(const std::string &ssrc, bool pause) {
+    auto listener = _listener.lock();
+    if (!listener) {
+        return false;
+    }
+    return listener->pauseSendRtp(*this, ssrc, pause);
+}
+
+template <typename MAP, typename LIST, typename First, typename... KeyTypes>
 static void for_each_media_l(const MAP &map, LIST &list, const First &first, const KeyTypes &...keys) {
     if (first.empty()) {
         for (auto &pr : map) {
