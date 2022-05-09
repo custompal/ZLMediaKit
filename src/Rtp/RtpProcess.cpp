@@ -80,7 +80,7 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
     if (!_sock) {
         //第一次运行本函数
         _sock = sock;
-        _addr = *addr;
+        _addr = *((struct sockaddr_storage *)addr);
         emitOnPublish();
     }
 
@@ -198,18 +198,18 @@ void RtpProcess::setOnDetach(const function<void()> &cb) {
 }
 
 string RtpProcess::get_peer_ip() {
-    return SockUtil::inet_ntoa(((struct sockaddr_in &) _addr).sin_addr);
+    return SockUtil::inet_ntoa((struct sockaddr *)&_addr);
 }
 
 uint16_t RtpProcess::get_peer_port() {
-    return ntohs(((struct sockaddr_in &) _addr).sin_port);
+    return SockUtil::inet_port((struct sockaddr *)&_addr);
 }
 
 string RtpProcess::get_local_ip() {
     if (_sock) {
         return _sock->get_local_ip();
     }
-    return "0.0.0.0";
+    return "::";
 }
 
 uint16_t RtpProcess::get_local_port() {
