@@ -723,6 +723,11 @@ int RtspPlayer::getTrackIndexByInterleaved(int interleaved) const {
     for (size_t i = 0; i < _sdp_track.size(); ++i) {
         if (_sdp_track[i]->_interleaved == interleaved) {
             return i;
+        } else {
+            if ((int)_sdp_track[i]->_interleaved != 0) {
+                WarnL << "_sdp_track[" << i << "] _interleaved = " << (int)_sdp_track[i]->_interleaved
+                      << ", interleaved = " << interleaved;
+            }
         }
     }
     if (_sdp_track.size() == 1) {
