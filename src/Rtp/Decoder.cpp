@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -140,7 +140,7 @@ void DecoderImp::onStream(int stream, int codecid, const void *extra, size_t byt
     }
 
     //防止未获取视频track提前complete导致忽略后续视频的问题，用于兼容一些不太规范的ps流
-    if (finish && _tracks[TrackVideo] ) {
+    if (finish /* && _tracks[TrackVideo]*/) {
         _sink->addTrackCompleted();
         InfoL << "add track finished";
     }
