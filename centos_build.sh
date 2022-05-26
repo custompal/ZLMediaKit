@@ -32,8 +32,9 @@ check_error()
 mkdir -p build/linux
 rm -rf build/linux/*
 
-sed -i "1cset(PKG_CONFIG_FOUND false)" ./player/CMakeLists.txt
 cd build/linux
+
+export PKG_CONFIG_PATH=$FFMPEG_PATH/lib/pkgconfig:$SDL2_PATH/lib64/pkgconfig:$PKG_CONFIG_PATH
 
 cmake \
 -DENABLE_API=true \
@@ -47,22 +48,13 @@ cmake \
 -DENABLE_SERVER=true \
 -DENABLE_TESTS=true \
 -DENABLE_WEBRTC=true \
+-DENABLE_FFMPEG=true \
 -DENABLE_X264=false \
--DAVUTIL_INCLUDE_DIR=$FFMPEG_PATH/include \
--DAVUTIL_LIBRARY=$FFMPEG_PATH/lib/libavutil-56.so \
--DAVCODEC_INCLUDE_DIR=$FFMPEG_PATH/include \
--DAVCODEC_LIBRARY=$FFMPEG_PATH/lib/libavcodec-58.so \
--DSWSCALE_INCLUDE_DIR=$FFMPEG_PATH/include \
--DSWSCALE_LIBRARY=$FFMPEG_PATH/lib/libswscale-5.so \
--DSWRESAMPLE_INCLUDE_DIR=$FFMPEG_PATH/include \
--DSWRESAMPLE_LIBRARY=$FFMPEG_PATH/lib/libswresample-3.so \
 -DJEMALLOC_INCLUDE_DIR=$JEMALLOC_PATH/include \
 -DJEMALLOC_LIBRARY=$JEMALLOC_PATH/lib/libjemalloc.a \
 -DOPENSSL_ROOT_DIR=$OPENSSL_PATH \
 -DMYSQL_INCLUDE_DIR=$MYSQL_PATH/include \
 -DMYSQL_LIBRARIES=$MYSQL_PATH/lib/libmysqlclient.a \
--DSDL2_INCLUDE_DIR=$SDL2_PATH/include \
--DSDL2_LIBRARY=$SDL2_PATH/lib64/libSDL2.a \
 -DSRTP_INCLUDE_DIRS=$SRTP_PATH/include \
 -DSRTP_LIBRARIES=$SRTP_PATH/lib/libsrtp2.a \
 -DSCTP_INCLUDE_DIRS=$SCTP_PATH/include \
@@ -73,4 +65,3 @@ cmake \
 make -j$THREAD_NUM;check_error
 
 cd ../..
-sed -i "1cfind_package(PkgConfig QUIET)" ./player/CMakeLists.txt

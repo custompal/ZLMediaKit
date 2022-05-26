@@ -449,7 +449,7 @@ if (WIN32)
         set_target_properties(zlmediakit PROPERTIES COMPILE_FLAGS ${VS_FALGS})
     endif ()
 elseif (NOT ANDROID OR IOS)
-    list(APPEND LINK_LIB_LIST pthread)
+    list(APPEND LINK_LIB_LIST pthread dl)
 endif ()
 
 #复制文件过来
