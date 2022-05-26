@@ -32,6 +32,8 @@ public:
     ~SDLAudioDevice();
     static SDLAudioDevice &Instance();
 
+    SDL_AudioSpec getOutFormat() { return _audio_config; }
+
     void addChannel(AudioSRC *chn);
     void delChannel(AudioSRC *chn);
 

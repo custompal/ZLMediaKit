@@ -140,8 +140,8 @@ public:
                 _win = SDL_CreateWindow(_title.data(),
                                         SDL_WINDOWPOS_UNDEFINED,
                                         SDL_WINDOWPOS_UNDEFINED,
-                                        pFrame->width,
-                                        pFrame->height,
+                                        pFrame->width > 1280 ? 1280 : pFrame->width,
+                                        pFrame->height > 720 ? 720 : pFrame->height,
                                         SDL_WINDOW_OPENGL);
             }
         }

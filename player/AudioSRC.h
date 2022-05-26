@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
@@ -63,13 +63,14 @@ public:
     AudioPlayer();
     ~AudioPlayer() override;
 
-    void setup(int sample_rate, int channel, SDL_AudioFormat format);
+    void setup(SDL_AudioFormat format);
     void playPCM(const char *data, size_t size);
 
-private:
     SDL_AudioFormat getPCMFormat() override;
     int getPCMSampleRate() override;
     int getPCMChannel() override;
+
+private:
     int getPCMData(char *buf, int size) override;
 
 private:

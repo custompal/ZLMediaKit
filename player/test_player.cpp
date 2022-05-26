@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
@@ -33,6 +33,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstanc, LPSTR lpCmdLine,
 
     //1. 首先调用AllocConsole创建一个控制台窗口
     AllocConsole();
+    system("chcp 65001");
 
     //2. 但此时调用cout或者printf都不能正常输出文字到窗口（包括输入流cin和scanf）, 所以需要如下重定向输入输出流：
     FILE* stream;
@@ -93,17 +94,18 @@ int main(int argc, char *argv[]) {
             auto decoder = std::make_shared<FFmpegDecoder>(audioTrack);
             auto audio_player = std::make_shared<AudioPlayer>();
             //FFmpeg解码时已经统一转换为16位整型pcm
-            audio_player->setup(audioTrack->getAudioSampleRate(), audioTrack->getAudioChannel(), AUDIO_S16);
+            audio_player->setup(AUDIO_S16);
             FFmpegSwr::Ptr swr;
 
             decoder->setOnDecode([audio_player, swr](const FFmpegFrame::Ptr &frame) mutable{
                 if (!swr) {
-                    swr = std::make_shared<FFmpegSwr>(AV_SAMPLE_FMT_S16, frame->get()->channels,
-                                                      frame->get()->channel_layout, frame->get()->sample_rate);
+                    swr = std::make_shared<FFmpegSwr>(AV_SAMPLE_FMT_S16, audio_player->getPCMChannel(),
+                                                      av_get_default_channel_layout(audio_player->getPCMChannel()),
+                                                      audio_player->getPCMSampleRate());
                 }
                 auto pcm = swr->inputFrame(frame);
                 auto len = pcm->get()->nb_samples * pcm->get()->channels * av_get_bytes_per_sample((enum AVSampleFormat)pcm->get()->format);
-                audio_player->playPCM((const char *) (pcm->get()->data[0]), MIN(len, frame->get()->linesize[0]));
+                audio_player->playPCM((const char *) (pcm->get()->data[0]), len);
             });
             auto audio_delegate = std::make_shared<FrameWriterInterfaceHelper>( [decoder](const Frame::Ptr &frame) {
                 return decoder->inputFrame(frame, false, true);

@@ -52,7 +52,7 @@ int AudioSRC::getPCMData(char *buf, int size) {
     }
 
     //对应的未转换前pcm的长度
-    auto original_size = (int) (size / _audio_cvt.len_ratio);
+    auto original_size = (int) (size / _audio_cvt.len_mult);
     if (original_size % 4 != 0) {
         //必须为4byte的整数(双通道16bit一个采样就4个字节)
         original_size = 4 * (original_size / 4) + 4;
@@ -101,9 +101,10 @@ AudioPlayer::~AudioPlayer() {
     _device->delChannel(this);
 }
 
-void AudioPlayer::setup(int sample_rate, int channel, SDL_AudioFormat format) {
-    _sample_rate = sample_rate;
-    _channel = channel;
+void AudioPlayer::setup(SDL_AudioFormat format) {
+    auto cfg = _device->getOutFormat();
+    _sample_rate = cfg.freq;
+    _channel = cfg.channels;
     _format = format;
     _device->addChannel(this);
 }
