@@ -100,12 +100,10 @@ add_definitions(-DDISABLE_MAIN)
 #添加json以及MediaServer相关代码
 include_directories(${ZLMediaKit_Root}/3rdpart)
 include_directories(${ZLMediaKit_Root}/server)
-file(GLOB jsoncpp_src_list ${ZLMediaKit_Root}/3rdpart/jsoncpp/*.cpp)
 file(GLOB MediaServer_src_list ${ZLMediaKit_Root}/server/*.cpp)
-add_library(jsoncpp STATIC ${jsoncpp_src_list})
 add_library(MediaServer STATIC ${MediaServer_src_list})
 
 #链接
-target_link_libraries(zlmediakit_jni MediaServer jsoncpp ${LINK_LIB_LIST} log z)
+target_link_libraries(zlmediakit_jni MediaServer ${LINK_LIB_LIST} log z)
 
 
