@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -120,6 +120,8 @@ bool GB28181Process::inputRtp(bool, const char *data, size_t data_len) {
 
                 auto track = std::make_shared<G711Track>(pt == 0 ? CodecG711U : CodecG711A, 8000, 1, 16);
                 _interface->addTrack(track);
+                //非ps流这里暂时只处理音频
+                _interface->addTrackCompleted();
                 _rtp_decoder[pt] = Factory::getRtpDecoderByTrack(track);
                 break;
             }
@@ -134,7 +136,10 @@ bool GB28181Process::inputRtp(bool, const char *data, size_t data_len) {
                 });
 
                 //ts或ps负载
-                _rtp_decoder[pt] = std::make_shared<CommonRtpDecoder>(CodecInvalid, 32 * 1024);
+                GET_CONFIG(bool, relay_ps, RtpProxy::kRelayPs);
+                GET_CONFIG(uint32_t, ps_max_size, RtpProxy::kPsMaxSize);
+                _rtp_decoder[pt]
+                    = std::make_shared<CommonRtpDecoder>(CodecInvalid, (relay_ps ? ps_max_size : 32) * 1024);
                 //设置dump目录
                 GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
                 if (!dump_dir.empty()) {
@@ -171,22 +176,62 @@ void GB28181Process::onRtpDecode(const Frame::Ptr &frame) {
         fwrite(frame->data(), frame->size(), 1, _save_file_ps.get());
     }
 
+    GET_CONFIG(bool, relay_ps, RtpProxy::kRelayPs);
+    if (relay_ps) {
+        //输出rtp负载
+        _interface->inputRtpPayload(frame);
+    }
+
+    GET_CONFIG(bool, drop_frame, RtpProxy::kDropFrame);
     if (!_decoder) {
         //创建解码器
         if (checkTS((uint8_t *) frame->data(), frame->size())) {
             //猜测是ts负载
             InfoL << _media_info._streamid << " judged to be TS";
-            _decoder = DecoderImp::createDecoder(DecoderImp::decoder_ts, _interface);
+            _decoder = DecoderImp::createDecoder(DecoderImp::decoder_ts, drop_frame ? this : _interface);
         } else {
             //猜测是ps负载
             InfoL << _media_info._streamid << " judged to be PS";
-            _decoder = DecoderImp::createDecoder(DecoderImp::decoder_ps, _interface);
+            _decoder = DecoderImp::createDecoder(DecoderImp::decoder_ps, drop_frame ? this : _interface);
         }
     }
 
     if (_decoder) {
+        if (drop_frame) {
+            auto ref_frame = dynamic_pointer_cast<FrameImp>(frame);
+            if (ref_frame && ref_frame->_pre_frame_lost)
+                _drop_flag = true;
+        }
         _decoder->input(reinterpret_cast<const uint8_t *>(frame->data()), frame->size());
     }
+}
+
+bool GB28181Process::inputFrame(const Frame::Ptr &frame) {
+    do {
+        if (frame->getTrackType() != TrackVideo)
+            break;
+        if (!_drop_flag)
+            break;
+        if (frame->configFrame() || frame->keyFrame()) {
+            _drop_flag = false;
+            break;
+        }
+        return true;
+    } while (0);
+
+    return _interface->inputFrame(frame);
+}
+
+bool GB28181Process::addTrack(const Track::Ptr &track) {
+    return _interface->addTrack(track);
+}
+
+void GB28181Process::addTrackCompleted() {
+    _interface->addTrackCompleted();
+}
+
+void GB28181Process::resetTracks() {
+    _interface->resetTracks();
 }
 
 }//namespace mediakit

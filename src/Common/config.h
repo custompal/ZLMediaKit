@@ -317,6 +317,9 @@ extern const std::string kDeleteDelaySec;
 namespace RtpProxy {
 //rtp调试数据保存目录,置空则不生成
 extern const std::string kDumpDir;
+extern const std::string kDropFrame;
+extern const std::string kRelayPs;
+extern const std::string kPsMaxSize;
 //rtp接收超时时间
 extern const std::string kTimeoutSec;
 //随机端口范围，最少确保36个端口

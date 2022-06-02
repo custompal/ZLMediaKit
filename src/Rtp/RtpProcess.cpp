@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -9,11 +9,13 @@
  */
 
 #if defined(ENABLE_RTPPROXY)
+#include "jsoncpp/json.h"
 #include "GB28181Process.h"
 #include "RtpProcess.h"
 #include "Http/HttpTSPlayer.h"
 
 using namespace std;
+using namespace Json;
 using namespace toolkit;
 
 static constexpr char kRtpAppName[] = "rtp";
@@ -62,6 +64,28 @@ RtpProcess::~RtpProcess() {
     if (_total_bytes >= iFlowThreshold * 1024) {
         NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, false, static_cast<SockInfo &>(*this));
     }
+}
+
+void RtpProcess::enableRtpCheck(bool enable) {
+    _enable_rtp_check = enable;
+}
+
+void RtpProcess::setProtocolOption(const string &proto_option) {
+    Value root;
+    Reader reader;
+
+    if (proto_option.empty() || !reader.parse(proto_option, root)) {
+        WarnL << "Invalid option param " << proto_option;
+        return;
+    }
+
+    _option.enable_hls = root["enable_hls"].isNull() ? false : root["enable_hls"].asBool();
+    _option.enable_mp4 = root["enable_mp4"].isNull() ? false : root["enable_mp4"].asBool();
+    _option.enable_audio = root["enable_audio"].isNull() ? true : root["enable_audio"].asBool();
+    _option.add_mute_audio = root["add_mute_audio"].isNull() ? false : root["add_mute_audio"].asBool();
+    _option.hls_save_path = root["hls_save_path"].isNull() ? "" : root["hls_save_path"].asString();
+    _option.mp4_save_path = root["mp4_save_path"].isNull() ? "" : root["mp4_save_path"].asString();
+    _option.mp4_max_second = root["mp4_max_second"].isNull() ? 0 : root["mp4_max_second"].asUInt();
 }
 
 bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out) {
@@ -131,6 +155,13 @@ bool RtpProcess::inputFrame(const Frame::Ptr &frame) {
     return true;
 }
 
+bool RtpProcess::inputRtpPayload(const Frame::Ptr &frame) {
+    if (_muxer) {
+        return _muxer->inputRtpPayload(frame);
+    }
+    return false;
+}
+
 bool RtpProcess::addTrack(const Track::Ptr &track) {
     if (_muxer) {
         return _muxer->addTrack(track);
@@ -163,6 +194,9 @@ void RtpProcess::doCachedFunc() {
 }
 
 bool RtpProcess::alive() {
+    if (!_enable_rtp_check.load()) {
+        return true;
+    }
     if (_stop_rtp_check.load()) {
         if(_last_check_alive.elapsedTime() > 5 * 60 * 1000){
             //最多暂停5分钟的rtp超时检测，因为NAT映射有效期一般不会太长
@@ -245,10 +279,16 @@ void RtpProcess::emitOnPublish() {
             return;
         }
         if (err.empty()) {
-            strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(strong_self->_media_info._vhost,
-                                                                          strong_self->_media_info._app,
-                                                                          strong_self->_media_info._streamid, 0.0f,
-                                                                          option);
+            auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
+            if (mmsm_create_cb) {
+                strong_self->_muxer = mmsm_create_cb(
+                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
+                    0.0f, option);
+            } else {
+                strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
+                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
+                    0.0f, option);
+            }
             strong_self->_muxer->setMediaListener(strong_self);
             strong_self->doCachedFunc();
             InfoP(strong_self) << "允许RTP推流";
@@ -261,7 +301,7 @@ void RtpProcess::emitOnPublish() {
     auto flag = NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastMediaPublish, MediaOriginType::rtp_push, _media_info, invoker, static_cast<SockInfo &>(*this));
     if (!flag) {
         //该事件无人监听,默认不鉴权
-        invoker("", ProtocolOption());
+        invoker("", _option);
     }
 }
 

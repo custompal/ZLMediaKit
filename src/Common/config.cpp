@@ -280,11 +280,17 @@ static onceToken token([](){
 namespace RtpProxy {
 #define RTP_PROXY_FIELD "rtp_proxy."
 const string kDumpDir = RTP_PROXY_FIELD"dumpDir";
+const string kDropFrame = RTP_PROXY_FIELD "dropFrame";
+const string kRelayPs = RTP_PROXY_FIELD "relayPs";
+const string kPsMaxSize = RTP_PROXY_FIELD "psMaxSize";
 const string kTimeoutSec = RTP_PROXY_FIELD"timeoutSec";
 const string kPortRange = RTP_PROXY_FIELD "port_range";
 
-static onceToken token([](){
+static onceToken token([]() {
     mINI::Instance()[kDumpDir] = "";
+    mINI::Instance()[kDropFrame] = 0;
+    mINI::Instance()[kRelayPs] = 0;
+    mINI::Instance()[kPsMaxSize] = 500;
     mINI::Instance()[kTimeoutSec] = 15;
     mINI::Instance()[kPortRange] = "30000-35000";
 });

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -23,6 +23,35 @@ public:
     friend class RtpProcessHelper;
     RtpProcess(const std::string &stream_id);
     ~RtpProcess();
+
+    /**
+     * 设置rtp处理器
+     * @param process rtp处理器
+     */
+    void setProcess(const ProcessInterface::Ptr &process) { _process = process; }
+
+    /**
+     * 获取rtp处理器
+     * @return rtp处理器
+     */
+    const ProcessInterface::Ptr &getProcess() const { return _process; }
+
+    /**
+     * 设置是否开启rtp超时检查
+     * @param enable 是否开启
+     */
+    void enableRtpCheck(bool enable);
+
+    /**
+     * 获取媒体信息
+     * @return 媒体信息
+     */
+    const MediaInfo &getMediaInfo() const { return _media_info; }
+
+    /**
+     * 设置协议转换
+     */
+    void setProtocolOption(const std::string &proto_option);
 
     /**
      * 输入rtp
@@ -68,6 +97,7 @@ public:
 
 protected:
     bool inputFrame(const Frame::Ptr &frame) override;
+    bool inputRtpPayload(const Frame::Ptr &frame) override;
     bool addTrack(const Track::Ptr & track) override;
     void addTrackCompleted() override;
     void resetTracks() override {};
@@ -92,7 +122,9 @@ private:
     std::shared_ptr<FILE> _save_file_rtp;
     std::shared_ptr<FILE> _save_file_video;
     ProcessInterface::Ptr _process;
+    ProtocolOption _option;
     MultiMediaSourceMuxer::Ptr _muxer;
+    std::atomic_bool _enable_rtp_check { true };
     std::atomic_bool _stop_rtp_check{false};
     std::atomic_flag _busy_flag{false};
     toolkit::Ticker _last_check_alive;

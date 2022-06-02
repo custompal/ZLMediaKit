@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -25,6 +25,7 @@ public:
     static const std::string kStreamID;
     static const std::string kIsUDP;
     static const std::string kSSRC;
+    static const std::string kProtoOption;
 
     RtpSession(const toolkit::Socket::Ptr &sock);
     ~RtpSession() override;
@@ -48,6 +49,7 @@ private:
     bool _search_rtp = false;
     bool _search_rtp_finished = false;
     uint32_t _ssrc = 0;
+    std::string _option;
     toolkit::Ticker _ticker;
     std::string _stream_id;
     struct sockaddr_storage _addr;

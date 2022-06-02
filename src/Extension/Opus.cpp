@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -54,7 +54,7 @@ Sdp::Ptr OpusTrack::getSdp() {
         WarnL << getCodecName() << " Track未准备好";
         return nullptr;
     }
-    return std::make_shared<OpusSdp>(getAudioSampleRate(), getAudioChannel(), getBitRate() / 1024);
+    return std::make_shared<OpusSdp>(getAudioSampleRate(), getAudioChannel(), getBitRate() / 1024, 103);
 }
 
 }//namespace mediakit

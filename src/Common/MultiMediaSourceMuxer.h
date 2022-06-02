@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -26,6 +26,11 @@ namespace mediakit {
 class ProtocolOption {
 public:
     ProtocolOption();
+
+    //是否开启私有websocket
+    bool enable_ws = true;
+    //是否开启kcp
+    bool enable_kcp = true;
 
     //是否开启转换为hls
     bool enable_hls = false;
@@ -72,23 +77,23 @@ public:
      * 设置事件监听器
      * @param listener 监听器
      */
-    void setMediaListener(const std::weak_ptr<MediaSourceEvent> &listener);
+    virtual void setMediaListener(const std::weak_ptr<MediaSourceEvent> &listener);
 
-     /**
-      * 随着Track就绪事件监听器
-      * @param listener 事件监听器
+    /**
+     * 随着Track就绪事件监听器
+     * @param listener 事件监听器
      */
     void setTrackListener(const std::weak_ptr<Listener> &listener);
 
     /**
      * 返回总的消费者个数
      */
-    int totalReaderCount() const;
+    virtual int totalReaderCount() const;
 
     /**
      * 判断是否生效(是否正在转其他协议)
      */
-    bool isEnabled();
+    virtual bool isEnabled();
 
     /**
      * 设置MediaSource时间戳
@@ -127,11 +132,9 @@ public:
     bool isRecording(MediaSource &sender, Recorder::type type) override;
 
     /**
-     * 开始发送ps-rtp流
-     * @param dst_url 目标ip或域名
-     * @param dst_port 目标端口
-     * @param ssrc rtp的ssrc
-     * @param is_udp 是否为udp
+     * 开始发送rtp流
+     * @param sender 媒体源
+     * @param args 发送参数
      * @param cb 启动成功或失败回调
      */
     void startSendRtp(MediaSource &sender, const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t, const toolkit::SockException &)> cb) override;
@@ -170,7 +173,7 @@ protected:
      */
     bool onTrackFrame(const Frame::Ptr &frame) override;
 
-private:
+protected:
     bool _is_enable = false;
     toolkit::Ticker _last_check;
     Stamp _stamp[2];
@@ -193,6 +196,11 @@ private:
     //对象个数统计
     toolkit::ObjectStatistic<MultiMediaSourceMuxer> _statistic;
 };
+
+using OnCreateMultiMediaSourceMuxerCb = std::function<MultiMediaSourceMuxer::Ptr(const std::string &vhost, const std::string &app, const std::string &stream, float dur_sec,const ProtocolOption &option)>;
+
+void setGlobalCreateMultiMediaSourceMuxerCb(OnCreateMultiMediaSourceMuxerCb cb);
+const OnCreateMultiMediaSourceMuxerCb &getGlobalCreateMultiMediaSourceMuxerCb();
 
 }//namespace mediakit
 #endif //ZLMEDIAKIT_MULTIMEDIASOURCEMUXER_H

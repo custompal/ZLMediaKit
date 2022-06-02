@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -186,23 +186,36 @@ std::shared_ptr<SockInfo> PlayerProxy::getOriginSock(MediaSource &sender) const 
 }
 
 void PlayerProxy::onPlaySuccess() {
+    auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
     GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);
     if (dynamic_pointer_cast<RtspMediaSource>(_media_src)) {
         //rtsp拉流代理
         if (reset_when_replay || !_muxer) {
             _option.enable_rtsp = false;
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            if (mmsm_create_cb) {
+                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            } else {
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            }
         }
     } else if (dynamic_pointer_cast<RtmpMediaSource>(_media_src)) {
         //rtmp拉流代理
         if (reset_when_replay || !_muxer) {
             _option.enable_rtmp = false;
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            if (mmsm_create_cb) {
+                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            } else {
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            }
         }
     } else {
         //其他拉流代理
         if (reset_when_replay || !_muxer) {
-            _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            if (mmsm_create_cb) {
+                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            } else {
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+            }
         }
     }
     _muxer->setMediaListener(shared_from_this());

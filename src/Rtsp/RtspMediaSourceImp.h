@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -81,7 +81,13 @@ public:
         //导致rtc无法播放，所以在rtsp推流rtc播放时，建议关闭直接代理模式
         _option = option;
         _option.enable_rtsp = !direct_proxy;
-        _muxer = std::make_shared<MultiMediaSourceMuxer>(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
+        auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
+        if (mmsm_create_cb) {
+            _muxer = mmsm_create_cb(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
+        } else {
+            _muxer = std::make_shared<MultiMediaSourceMuxer>(
+                getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
+        }
         _muxer->setMediaListener(getListener());
         _muxer->setTrackListener(std::static_pointer_cast<RtspMediaSourceImp>(shared_from_this()));
         //让_muxer对象拦截一部分事件(比如说录像相关事件)

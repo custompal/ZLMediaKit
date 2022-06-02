@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -22,7 +22,8 @@ namespace mediakit{
 class OpusTrack : public AudioTrackImp{
 public:
     typedef std::shared_ptr<OpusTrack> Ptr;
-    OpusTrack() : AudioTrackImp(CodecOpus,48000,2,16){}
+    OpusTrack(int sample_rate = 48000, int channels = 2, int sample_bit = 16)
+        : AudioTrackImp(CodecOpus, sample_rate, channels, sample_bit) {}
 
 private:
     //克隆该Track

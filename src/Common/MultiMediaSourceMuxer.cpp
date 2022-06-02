@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
 *
 * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -31,6 +31,10 @@ ProtocolOption::ProtocolOption() {
     enable_mp4 = s_to_mp4;
     enable_audio = s_enabel_audio;
     add_mute_audio = s_add_mute_audio;
+
+    enable_rtmp = false;
+    enable_ts = false;
+    enable_fmp4 = false;
 }
 
 static std::shared_ptr<MediaSinkInterface> makeRecorder(MediaSource &sender, const vector<Track::Ptr> &tracks, Recorder::type type, const string &custom_path, size_t max_second){
@@ -477,6 +481,16 @@ bool MultiMediaSourceMuxer::isEnabled(){
         }
     }
     return _is_enable;
+}
+
+static OnCreateMultiMediaSourceMuxerCb gCreateMultiMediaSourceMuxerCb = nullptr;
+
+void setGlobalCreateMultiMediaSourceMuxerCb(OnCreateMultiMediaSourceMuxerCb cb) {
+    gCreateMultiMediaSourceMuxerCb = std::move(cb);
+}
+
+const OnCreateMultiMediaSourceMuxerCb &getGlobalCreateMultiMediaSourceMuxerCb() {
+    return gCreateMultiMediaSourceMuxerCb;
 }
 
 }//namespace mediakit
