@@ -22,13 +22,11 @@ namespace mediakit{
 const string RtpSession::kStreamID = "stream_id";
 const string RtpSession::kIsUDP = "is_udp";
 const string RtpSession::kSSRC = "ssrc";
-const string RtpSession::kProtoOption = "proto_option";
 
 void RtpSession::attachServer(const Server &server) {
     _stream_id = const_cast<Server &>(server)[kStreamID];
     _is_udp = const_cast<Server &>(server)[kIsUDP];
     _ssrc = const_cast<Server &>(server)[kSSRC];
-    _option = const_cast<Server &>(server)[kProtoOption];
 
     if (_is_udp) {
         //设置udp socket读缓存
@@ -103,7 +101,6 @@ void RtpSession::onRtpPacket(const char *data, size_t len) {
         }
         //tcp情况下，一个tcp链接只可能是一路流，不需要通过多个ssrc来区分，所以不需要频繁getProcess
         _process = RtpSelector::Instance().getProcess(_stream_id, true);
-        _process->setProtocolOption(_option);
         _process->setListener(dynamic_pointer_cast<RtpSession>(shared_from_this()));
     }
     try {

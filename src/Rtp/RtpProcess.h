@@ -49,11 +49,6 @@ public:
     const MediaInfo &getMediaInfo() const { return _media_info; }
 
     /**
-     * 设置协议转换
-     */
-    void setProtocolOption(const std::string &proto_option);
-
-    /**
      * 输入rtp
      * @param is_udp 是否为udp模式
      * @param sock 本地监听的socket
@@ -122,7 +117,6 @@ private:
     std::shared_ptr<FILE> _save_file_rtp;
     std::shared_ptr<FILE> _save_file_video;
     ProcessInterface::Ptr _process;
-    ProtocolOption _option;
     MultiMediaSourceMuxer::Ptr _muxer;
     std::atomic_bool _enable_rtp_check { true };
     std::atomic_bool _stop_rtp_check{false};

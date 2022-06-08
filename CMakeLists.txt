@@ -420,11 +420,6 @@ if (USE_SOLUTION_FOLDERS AND (NOT GROUP_BY_EXPLORER))    # 在 IDE 中对文件�
    set_file_group("${CMAKE_CURRENT_SOURCE_DIR}/src" ${MediaKit_src_list})
 endif()
 
-#jsoncpp
-file(GLOB jsoncpp_src_list ${CMAKE_CURRENT_SOURCE_DIR}/3rdpart/jsoncpp/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/3rdpart/jsoncpp/*.h )
-add_library(jsoncpp STATIC ${jsoncpp_src_list})
-list(APPEND LINK_LIB_LIST jsoncpp)
-
 #添加库
 add_library(zltoolkit STATIC ${ToolKit_src_list})
 add_library(zlmediakit STATIC ${MediaKit_src_list})

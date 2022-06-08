@@ -9,13 +9,11 @@
  */
 
 #if defined(ENABLE_RTPPROXY)
-#include "jsoncpp/json.h"
 #include "GB28181Process.h"
 #include "RtpProcess.h"
 #include "Http/HttpTSPlayer.h"
 
 using namespace std;
-using namespace Json;
 using namespace toolkit;
 
 static constexpr char kRtpAppName[] = "rtp";
@@ -68,24 +66,6 @@ RtpProcess::~RtpProcess() {
 
 void RtpProcess::enableRtpCheck(bool enable) {
     _enable_rtp_check = enable;
-}
-
-void RtpProcess::setProtocolOption(const string &proto_option) {
-    Value root;
-    Reader reader;
-
-    if (proto_option.empty() || !reader.parse(proto_option, root)) {
-        WarnL << "Invalid option param " << proto_option;
-        return;
-    }
-
-    _option.enable_hls = root["enable_hls"].isNull() ? false : root["enable_hls"].asBool();
-    _option.enable_mp4 = root["enable_mp4"].isNull() ? false : root["enable_mp4"].asBool();
-    _option.enable_audio = root["enable_audio"].isNull() ? true : root["enable_audio"].asBool();
-    _option.add_mute_audio = root["add_mute_audio"].isNull() ? false : root["add_mute_audio"].asBool();
-    _option.hls_save_path = root["hls_save_path"].isNull() ? "" : root["hls_save_path"].asString();
-    _option.mp4_save_path = root["mp4_save_path"].isNull() ? "" : root["mp4_save_path"].asString();
-    _option.mp4_max_second = root["mp4_max_second"].isNull() ? 0 : root["mp4_max_second"].asUInt();
 }
 
 bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out) {
@@ -301,7 +281,7 @@ void RtpProcess::emitOnPublish() {
     auto flag = NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastMediaPublish, MediaOriginType::rtp_push, _media_info, invoker, static_cast<SockInfo &>(*this));
     if (!flag) {
         //该事件无人监听,默认不鉴权
-        invoker("", _option);
+        invoker("", ProtocolOption());
     }
 }
 
