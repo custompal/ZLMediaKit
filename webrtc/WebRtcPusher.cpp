@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -146,4 +146,12 @@ void WebRtcPusher::onRtcConfigure(RtcConfigure &configure) const {
     WebRtcTransportImp::onRtcConfigure(configure);
     //这只是推流
     configure.audio.direction = configure.video.direction = RtpDirection::recvonly;
+}
+
+int WebRtcPusher::getLossRate(MediaSource &sender,mediakit::TrackType type){
+    return WebRtcTransportImp::getLossRate(type);
+}
+
+toolkit::EventPoller::Ptr WebRtcPusher::getOwnerPoller(mediakit::MediaSource &sender) {
+    return getPoller();
 }

@@ -185,6 +185,10 @@ std::shared_ptr<SockInfo> PlayerProxy::getOriginSock(MediaSource &sender) const 
     return getSockInfo();
 }
 
+toolkit::EventPoller::Ptr PlayerProxy::getOwnerPoller(MediaSource &sender) {
+    return getPoller();
+}
+
 void PlayerProxy::onPlaySuccess() {
     auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
     GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);

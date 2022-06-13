@@ -106,6 +106,7 @@ option(ENABLE_FFMPEG "Enable FFmpeg" true)
 option(ENABLE_MSVC_MT "Enable MSVC Mt/Mtd lib" true)
 option(ENABLE_API_STATIC_LIB "Enable mk_api static lib" false)
 option(USE_SOLUTION_FOLDERS "Enable solution dir supported" ON)
+option(ENABLE_SRT "Enable SRT" true)
 # ----------------------------------------------------------------------------
 # Solution folders:
 # ----------------------------------------------------------------------------
@@ -289,6 +290,7 @@ if (ENABLE_FFMPEG)
 
     if (AVUTIL_FOUND AND AVCODEC_FOUND AND SWSCALE_FOUND AND SWRESAMPLE_FOUND)
         add_definitions(-DENABLE_FFMPEG)
+        list(APPEND LINK_LIB_LIST ${CMAKE_DL_LIBS})
     else ()
         set(ENABLE_FFMPEG off)
         message(WARNING "ffmpeg相关功能未找到")
@@ -449,7 +451,7 @@ if (WIN32)
         set_target_properties(zlmediakit PROPERTIES COMPILE_FLAGS ${VS_FALGS})
     endif ()
 elseif (NOT ANDROID OR IOS)
-    list(APPEND LINK_LIB_LIST pthread dl)
+    list(APPEND LINK_LIB_LIST pthread)
 endif ()
 
 #复制文件过来
@@ -485,6 +487,15 @@ if (ENABLE_WEBRTC)
         message(WARNING "srtp未找到, webrtc相关功能打开失败")
     endif ()
 endif ()
+
+if (ENABLE_SRT)
+    add_definitions(-DENABLE_SRT)
+    include_directories(./srt)
+    file(GLOB SRC_SRT_LIST ./srt/*.cpp ./srt/*.h ./srt/*.hpp)
+    add_library(srt ${SRC_SRT_LIST})
+    list(APPEND LINK_LIB_LIST srt)
+    message(STATUS "srt 功能已开启")
+endif()
 
 #添加c库
 if (ENABLE_API)
