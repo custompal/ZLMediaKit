@@ -66,13 +66,13 @@ void GB28181Process::onRtpSorted(RtpPacket::Ptr rtp) {
 }
 
 bool GB28181Process::inputRtp(bool, const char *data, size_t data_len) {
-    GET_CONFIG(uint32_t, h264_pt, RtpProxy::KH264PT);
-    GET_CONFIG(uint32_t, h265_pt, RtpProxy::KH265PT);
-    GET_CONFIG(uint32_t, ps_pt, RtpProxy::KPSPT);
-    GET_CONFIG(uint32_t, ts_pt, RtpProxy::KTSPT);
-    GET_CONFIG(uint32_t, opus_pt, RtpProxy::KOpusPT);
-    GET_CONFIG(uint32_t, g711u_pt, RtpProxy::KG711UPT);
-    GET_CONFIG(uint32_t, g711a_pt, RtpProxy::KG711APT);
+    GET_CONFIG(uint32_t, h264_pt, RtpProxy::kH264PT);
+    GET_CONFIG(uint32_t, h265_pt, RtpProxy::kH265PT);
+    GET_CONFIG(uint32_t, ps_pt, RtpProxy::kPSPT);
+    GET_CONFIG(uint32_t, ts_pt, RtpProxy::kTSPT);
+    GET_CONFIG(uint32_t, opus_pt, RtpProxy::kOpusPT);
+    GET_CONFIG(uint32_t, g711u_pt, RtpProxy::kG711UPT);
+    GET_CONFIG(uint32_t, g711a_pt, RtpProxy::kG711APT);
 
     RtpHeader *header = (RtpHeader *)data;
     auto pt = header->pt;
@@ -108,7 +108,7 @@ bool GB28181Process::inputRtp(bool, const char *data, size_t data_len) {
             // CodecG711A
             ref = std::make_shared<RtpReceiverImp>(8000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
 
-            auto track = std::make_shared<G711Track>(pt == 0 ? CodecG711U : CodecG711A, 8000, 1, 16);
+            auto track = std::make_shared<G711Track>(pt == g711u_pt ? CodecG711U : CodecG711A, 8000, 1, 16);
             _interface->addTrack(track);
             //非ps流这里暂时只处理音频
             _interface->addTrackCompleted();
