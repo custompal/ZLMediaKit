@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -224,6 +224,8 @@ extern const std::string kNotFound;
 extern const std::string kDirMenu;
 // 禁止缓存文件的后缀
 extern const std::string kForbidCacheSuffix;
+// 可以把http代理前真实客户端ip放在http头中：https://github.com/ZLMediaKit/ZLMediaKit/issues/1388
+extern const std::string kForwardedIpHeader;
 } // namespace Http
 
 ////////////SHELL配置///////////

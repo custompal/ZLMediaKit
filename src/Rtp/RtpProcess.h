@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -101,6 +101,7 @@ protected:
     MediaOriginType getOriginType(MediaSource &sender) const override;
     std::string getOriginUrl(MediaSource &sender) const override;
     std::shared_ptr<SockInfo> getOriginSock(MediaSource &sender) const override;
+    toolkit::EventPoller::Ptr getOwnerPoller(MediaSource &sender) override;
 
 private:
     void emitOnPublish();

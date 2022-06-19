@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -504,13 +504,15 @@ void RtspPlayer::onRtpPacket(const char *data, size_t len) {
     uint8_t interleaved = data[1];
     if(interleaved %2 == 0){
         trackIdx = getTrackIndexByInterleaved(interleaved);
-        if (trackIdx == -1)
+        if (trackIdx == -1) {
             return;
+        }
         handleOneRtp(trackIdx, _sdp_track[trackIdx]->_type, _sdp_track[trackIdx]->_samplerate, (uint8_t *)data + RtpPacket::kRtpTcpHeaderSize, len - RtpPacket::kRtpTcpHeaderSize);
     }else{
         trackIdx = getTrackIndexByInterleaved(interleaved - 1);
-        if (trackIdx == -1)
+        if (trackIdx == -1) {
             return;
+        }
         onRtcpPacket(trackIdx, _sdp_track[trackIdx], (uint8_t *) data + RtpPacket::kRtpTcpHeaderSize, len - RtpPacket::kRtpTcpHeaderSize);
     }
 }
@@ -723,11 +725,6 @@ int RtspPlayer::getTrackIndexByInterleaved(int interleaved) const {
     for (size_t i = 0; i < _sdp_track.size(); ++i) {
         if (_sdp_track[i]->_interleaved == interleaved) {
             return i;
-        } else {
-            if ((int)_sdp_track[i]->_interleaved != 0) {
-                WarnL << "_sdp_track[" << i << "] _interleaved = " << (int)_sdp_track[i]->_interleaved
-                      << ", interleaved = " << interleaved;
-            }
         }
     }
     if (_sdp_track.size() == 1) {
@@ -735,7 +732,6 @@ int RtspPlayer::getTrackIndexByInterleaved(int interleaved) const {
     }
     WarnL << "no such track with interleaved:" << interleaved;
     return -1;
-    //throw SockException(Err_shutdown, StrPrinter << "no such track with interleaved:" << interleaved);
 }
 
 int RtspPlayer::getTrackIndexByTrackType(TrackType track_type) const {
