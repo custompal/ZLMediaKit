@@ -157,9 +157,17 @@ void SrtTransportImp::emitOnPublish() {
             return;
         }
         if (err.empty()) {
-            strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
-                strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
-                0.0f, option);
+            const_cast<ProtocolOption &>(option).enable_ts = true;
+            auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
+            if (mmsm_create_cb) {
+                strong_self->_muxer = mmsm_create_cb(
+                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
+                    0.0f, option);
+            } else {
+                strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
+                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
+                    0.0f, option);
+            }
             strong_self->_muxer->setMediaListener(strong_self);
             strong_self->doCachedFunc();
             InfoP(strong_self) << "允许 srt 推流";
