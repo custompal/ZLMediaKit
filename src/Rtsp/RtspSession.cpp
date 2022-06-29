@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
@@ -316,9 +316,8 @@ void RtspSession::handleReq_RECORD(const Parser &parser){
     for (auto &track : _sdp_track) {
         if (track->_inited == false) {
             //还有track没有setup
-            //shutdown(SockException(Err_shutdown, "track not setuped"));
-            //return;
-            continue;
+            shutdown(SockException(Err_shutdown, "track not setuped"));
+            return;
         }
         rtp_info << "url=" << track->getControlUrl(_content_base) << ",";
     }
