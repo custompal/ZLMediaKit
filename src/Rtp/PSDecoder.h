@@ -25,8 +25,6 @@ public:
     ~PSDecoder();
 
     ssize_t input(const uint8_t* data, size_t bytes) override;
-    void setOnDecode(onDecode cb) override;
-    void setOnStream(onStream cb) override;
 
     // HttpRequestSplitter interface
 private:
@@ -39,8 +37,6 @@ private:
 
 private:
     void *_ps_demuxer = nullptr;
-    onDecode _on_decode;
-    onStream _on_stream;
 
     //为了兼容部分设备ps流音频时钟频率不统一问题
     int _audio_clock_rate = 0;
