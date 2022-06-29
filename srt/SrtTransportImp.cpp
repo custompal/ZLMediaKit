@@ -162,7 +162,6 @@ void SrtTransportImp::emitOnPublish() {
             return;
         }
         if (err.empty()) {
-            const_cast<ProtocolOption &>(option).enable_ts = true;
             auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
             if (mmsm_create_cb) {
                 strong_self->_muxer = mmsm_create_cb(
