@@ -37,7 +37,6 @@ ProtocolOption::ProtocolOption() {
 
     enable_rtmp = false;
     enable_ts = false;
-    enable_fmp4 = false;
 }
 
 static std::shared_ptr<MediaSinkInterface> makeRecorder(MediaSource &sender, const vector<Track::Ptr> &tracks, Recorder::type type, const string &custom_path, size_t max_second){

@@ -30,7 +30,7 @@ public:
     //是否开启私有websocket
     bool enable_ws = true;
     //是否开启kcp
-    bool enable_kcp = true;
+    bool enable_kcp = false;
 
     //是否开启转换为hls
     bool enable_hls = false;
