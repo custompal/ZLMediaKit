@@ -427,14 +427,14 @@ bool MultiMediaSourceMuxer::isEnabled(){
     return _is_enable;
 }
 
-static OnCreateMultiMediaSourceMuxerCb gCreateMultiMediaSourceMuxerCb = nullptr;
+static onCreateMediaMuxer s_on_create_media_muxer = nullptr;
 
-void setGlobalCreateMultiMediaSourceMuxerCb(OnCreateMultiMediaSourceMuxerCb cb) {
-    gCreateMultiMediaSourceMuxerCb = std::move(cb);
+void setOnCreateMediaMuxer(onCreateMediaMuxer cb) {
+    s_on_create_media_muxer = std::move(cb);
 }
 
-const OnCreateMultiMediaSourceMuxerCb &getGlobalCreateMultiMediaSourceMuxerCb() {
-    return gCreateMultiMediaSourceMuxerCb;
+const onCreateMediaMuxer &getOnCreateMediaMuxer() {
+    return s_on_create_media_muxer;
 }
 
 }//namespace mediakit

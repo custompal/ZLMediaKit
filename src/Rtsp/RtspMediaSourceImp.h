@@ -81,9 +81,9 @@ public:
         //导致rtc无法播放，所以在rtsp推流rtc播放时，建议关闭直接代理模式
         _option = option;
         _option.enable_rtsp = !direct_proxy;
-        auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
-        if (mmsm_create_cb) {
-            _muxer = mmsm_create_cb(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
+        auto &on_create_media_muxer = getOnCreateMediaMuxer();
+        if (on_create_media_muxer) {
+            _muxer = on_create_media_muxer(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
         } else {
             _muxer = std::make_shared<MultiMediaSourceMuxer>(
                 getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);

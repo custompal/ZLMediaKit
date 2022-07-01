@@ -82,9 +82,9 @@ public:
         _option = option;
         //不重复生成rtmp协议
         _option.enable_rtmp = false;
-        auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
-        if (mmsm_create_cb) {
-            _muxer = mmsm_create_cb(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
+        auto &on_create_media_muxer = getOnCreateMediaMuxer();
+        if (on_create_media_muxer) {
+            _muxer = on_create_media_muxer(getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);
         } else {
             _muxer = std::make_shared<MultiMediaSourceMuxer>(
                 getVhost(), getApp(), getId(), _demuxer->getDuration(), _option);

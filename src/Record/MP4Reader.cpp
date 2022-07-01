@@ -42,9 +42,9 @@ MP4Reader::MP4Reader(const string &vhost, const string &app, const string &strea
     //读取mp4文件并流化时，不重复生成mp4/hls文件
     option.enable_mp4 = false;
     option.enable_hls = false;
-    auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
-    if (mmsm_create_cb) {
-        _muxer = mmsm_create_cb(vhost, app, stream_id, _demuxer->getDurationMS() / 1000.0f, option);
+    auto &on_create_media_muxer = getOnCreateMediaMuxer();
+    if (on_create_media_muxer) {
+        _muxer = on_create_media_muxer(vhost, app, stream_id, _demuxer->getDurationMS() / 1000.0f, option);
     } else {
         _muxer = std::make_shared<MultiMediaSourceMuxer>(
             vhost, app, stream_id, _demuxer->getDurationMS() / 1000.0f, option);

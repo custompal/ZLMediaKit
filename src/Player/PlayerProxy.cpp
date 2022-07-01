@@ -190,14 +190,14 @@ toolkit::EventPoller::Ptr PlayerProxy::getOwnerPoller(MediaSource &sender) {
 }
 
 void PlayerProxy::onPlaySuccess() {
-    auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
+    auto &on_create_media_muxer = getOnCreateMediaMuxer();
     GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);
     if (dynamic_pointer_cast<RtspMediaSource>(_media_src)) {
         //rtsp拉流代理
         if (reset_when_replay || !_muxer) {
             _option.enable_rtsp = false;
-            if (mmsm_create_cb) {
-                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            if (on_create_media_muxer) {
+                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
             } else {
                 _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
             }
@@ -206,8 +206,8 @@ void PlayerProxy::onPlaySuccess() {
         //rtmp拉流代理
         if (reset_when_replay || !_muxer) {
             _option.enable_rtmp = false;
-            if (mmsm_create_cb) {
-                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            if (on_create_media_muxer) {
+                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
             } else {
                 _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
             }
@@ -215,8 +215,8 @@ void PlayerProxy::onPlaySuccess() {
     } else {
         //其他拉流代理
         if (reset_when_replay || !_muxer) {
-            if (mmsm_create_cb) {
-                _muxer = mmsm_create_cb(_vhost, _app, _stream_id, getDuration(), _option);
+            if (on_create_media_muxer) {
+                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
             } else {
                 _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
             }

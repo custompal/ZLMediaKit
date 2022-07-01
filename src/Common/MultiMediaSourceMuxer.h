@@ -199,10 +199,9 @@ protected:
     toolkit::ObjectStatistic<MultiMediaSourceMuxer> _statistic;
 };
 
-using OnCreateMultiMediaSourceMuxerCb = std::function<MultiMediaSourceMuxer::Ptr(const std::string &vhost, const std::string &app, const std::string &stream, float dur_sec,const ProtocolOption &option)>;
-
-void setGlobalCreateMultiMediaSourceMuxerCb(OnCreateMultiMediaSourceMuxerCb cb);
-const OnCreateMultiMediaSourceMuxerCb &getGlobalCreateMultiMediaSourceMuxerCb();
+using onCreateMediaMuxer = std::function<MultiMediaSourceMuxer::Ptr(const std::string &vhost, const std::string &app, const std::string &stream, float dur_sec,const ProtocolOption &option)>;
+void setOnCreateMediaMuxer(onCreateMediaMuxer cb);
+const onCreateMediaMuxer &getOnCreateMediaMuxer();
 
 }//namespace mediakit
 #endif //ZLMEDIAKIT_MULTIMEDIASOURCEMUXER_H

@@ -259,9 +259,9 @@ void RtpProcess::emitOnPublish() {
             return;
         }
         if (err.empty()) {
-            auto &mmsm_create_cb = getGlobalCreateMultiMediaSourceMuxerCb();
-            if (mmsm_create_cb) {
-                strong_self->_muxer = mmsm_create_cb(
+            auto &on_create_media_muxer = getOnCreateMediaMuxer();
+            if (on_create_media_muxer) {
+                strong_self->_muxer = on_create_media_muxer(
                     strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
                     0.0f, option);
             } else {
