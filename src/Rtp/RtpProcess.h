@@ -13,6 +13,7 @@
 
 #if defined(ENABLE_RTPPROXY)
 #include "ProcessInterface.h"
+#include "Rtcp/RtcpContext.h"
 #include "Common/MultiMediaSourceMuxer.h"
 
 namespace mediakit {
@@ -90,6 +91,8 @@ public:
     int getTotalReaderCount();
     void setListener(const std::weak_ptr<MediaSourceEvent> &listener);
 
+    void setHelper(const std::weak_ptr<RtcpContext> help);
+    int getLossRate(MediaSource &sender, TrackType type) override;
 protected:
     bool inputFrame(const Frame::Ptr &frame) override;
     bool inputRtpPayload(const Frame::Ptr &frame) override;
@@ -125,6 +128,7 @@ private:
     toolkit::Ticker _last_check_alive;
     std::recursive_mutex _func_mtx;
     std::deque<std::function<void()> > _cached_func;
+    std::weak_ptr<RtcpContext> _help;
 };
 
 }//namespace mediakit
