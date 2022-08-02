@@ -127,6 +127,24 @@ message(STATUS "Git version is ${BRANCH_NAME}:${COMMIT_HASH}:${BUILD_TIME}")
 
 ##############################################################################
 
+#重新定义当前目标源文件的__FILE__宏, 简化文件路径信息, 防止日志信息太长
+function(define_filename_macro target)
+    #获取当前目标的所有源文件
+    get_target_property(SOURCE_FILES "${target}" SOURCES)
+    #遍历源文件
+    foreach(SOURCEFILE ${SOURCE_FILES})
+        #获取当前源文件的编译参数
+        get_property(DEFS SOURCE "${SOURCEFILE}" PROPERTY COMPILE_DEFINITIONS)
+        #获取当前文件的名称
+        get_filename_component(FILENAME "${SOURCEFILE}" NAME)
+        #message("File name: ${FILENAME}")
+        #将我们要加的编译参数(__FILE__定义)添加到原来的编译参数里面
+        list(APPEND DEFS "__FILE__=\"${FILENAME}\"")
+        #重新设置源文件的编译参数
+        set_property(SOURCE "${SOURCEFILE}" PROPERTY COMPILE_DEFINITIONS ${DEFS})
+    endforeach()
+endfunction()
+
 # 方便修改全局变量
 function(update_cached name value)
   set("${name}" "${value}" CACHE INTERNAL "*** Internal ***" FORCE)

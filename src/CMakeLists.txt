@@ -35,6 +35,7 @@ endif()
 # 添加库
 add_library(zlmediakit STATIC ${MediaKit_SRC_LIST})
 add_library(ZLMediaKit::MediaKit ALIAS zlmediakit)
+define_filename_macro(zlmediakit)
 
 set(LINK_LIBRARIES ${MK_LINK_LIBRARIES})
 list(REMOVE_ITEM LINK_LIBRARIES ZLMediaKit::MediaKit)

@@ -25,6 +25,7 @@ file(GLOB SRT_SRC_LIST *.cpp *.h *.hpp)
 
 add_library(srt STATIC ${SRT_SRC_LIST})
 add_library(ZLMediaKit::SRT ALIAS srt)
+define_filename_macro(srt)
 target_link_libraries(srt
   PUBLIC
     ZLMediaKit::MediaKit

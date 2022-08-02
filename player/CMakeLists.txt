@@ -52,6 +52,7 @@ message(STATUS "${PLAYER_NAME} enabled")
 
 aux_source_directory(. SRC_LIST)
 add_executable(${PLAYER_NAME} ${SRC_LIST})
+define_filename_macro(${PLAYER_NAME})
 target_compile_definitions(${PLAYER_NAME}
   PRIVATE ${MK_COMPILE_DEFINITIONS})
 target_compile_options(${PLAYER_NAME}

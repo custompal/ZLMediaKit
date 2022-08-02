@@ -39,6 +39,7 @@ if(ENABLE_SERVER_LIB)
 endif()
 
 add_executable(MediaServer ${MediaServer_SRC_LIST})
+define_filename_macro(MediaServer)
 target_compile_definitions(MediaServer
   PRIVATE ${COMPILE_DEFINITIONS})
 target_compile_options(MediaServer

@@ -26,6 +26,7 @@
 # jsoncpp
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/jsoncpp JSONCPP_SRC_LIST)
 add_library(jsoncpp STATIC ${JSONCPP_SRC_LIST})
+define_filename_macro(jsoncpp)
 target_compile_options(jsoncpp
   PRIVATE ${COMPILE_OPTIONS_DEFAULT})
 target_include_directories(jsoncpp
@@ -52,6 +53,7 @@ if(ENABLE_MP4)
   aux_source_directory(${MediaServer_MOV_ROOT}/source  MOV_SRC_LIST)
   add_library(mov STATIC ${MOV_SRC_LIST})
   add_library(MediaServer::mov ALIAS mov)
+  define_filename_macro(mov)
   target_compile_definitions(mov
     PUBLIC -DENABLE_MP4)
   target_compile_options(mov
@@ -68,6 +70,7 @@ if(ENABLE_MP4)
   aux_source_directory(${MediaServer_FLV_ROOT}/source  FLV_SRC_LIST)
   add_library(flv STATIC ${FLV_SRC_LIST})
   add_library(MediaServer::flv ALIAS flv)
+  define_filename_macro(flv)
   target_compile_options(flv
     PRIVATE ${COMPILE_OPTIONS_DEFAULT})
   target_include_directories(flv
@@ -90,6 +93,7 @@ if(ENABLE_RTPPROXY OR ENABLE_HLS)
   aux_source_directory(${MediaServer_MPEG_ROOT}/source  MPEG_SRC_LIST)
   add_library(mpeg STATIC ${MPEG_SRC_LIST})
   add_library(MediaServer::mpeg ALIAS mpeg)
+  define_filename_macro(mpeg)
   target_compile_options(mpeg
     PRIVATE ${COMPILE_OPTIONS_DEFAULT})
   target_include_directories(mpeg
@@ -166,6 +170,7 @@ endif()
 # 添加库
 add_library(zltoolkit STATIC ${ToolKit_SRC_LIST})
 add_library(ZLMediaKit::ToolKit ALIAS zltoolkit)
+define_filename_macro(zltoolkit)
 target_compile_definitions(zltoolkit
   PUBLIC ${COMPILE_DEFINITIONS})
 target_compile_options(zltoolkit
