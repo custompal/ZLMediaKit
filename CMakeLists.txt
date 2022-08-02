@@ -401,7 +401,7 @@ endif()
 if(WIN32)
   update_cached_list(MK_LINK_LIBRARIES WS2_32 Iphlpapi shlwapi)
 elseif(NOT ANDROID OR IOS)
-  update_cached_list(MK_LINK_LIBRARIES pthread)
+  update_cached_list(MK_LINK_LIBRARIES pthread ${CMAKE_DL_LIBS})
 endif()
 
 # ----------------------------------------------------------------------------
