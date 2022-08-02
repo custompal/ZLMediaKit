@@ -186,6 +186,7 @@ if(UNIX)
   set(COMPILE_OPTIONS_DEFAULT
     "-fPIC"
     "-Wall;-Wextra"
+    "-Wno-builtin-macro-redefined"
     "-Wno-unused-function;-Wno-unused-parameter;-Wno-unused-variable"
     "-Wno-error=extra;-Wno-error=missing-field-initializers;-Wno-error=type-limits")
 elseif(WIN32)
