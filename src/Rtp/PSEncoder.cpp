@@ -36,7 +36,7 @@ bool PSEncoderImp::inputRtpPayload(const mediakit::Frame::Ptr &frame) {
     return _rtp_encoder->inputFrame(frame);
 }
 
-void PSEncoderImp::onWrite(std::shared_ptr<Buffer> buffer, uint32_t stamp, bool key_pos) {
+void PSEncoderImp::onWrite(std::shared_ptr<Buffer> buffer, uint64_t stamp, bool key_pos) {
     if (!buffer) {
         return;
     }
