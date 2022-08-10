@@ -5,11 +5,13 @@ using namespace std;
 using namespace toolkit;
 using namespace mediakit;
 
+#define DEBUG_VIDEO 0
+
 int start_main(int argc, char *argv[]) {
     //设置日志
     Logger::Instance().add(make_shared<ConsoleChannel>("ConsoleChannel"));
 
-    const char *ps_file = "C:\\Users\\ChenRG\\Desktop\\bao.raw";
+    const char *ps_file = "D:\\rtp_dump\\34010000001320000216_34010000001320000216.mp2";
     shared_ptr<FILE> read_fp(fopen(ps_file, "rb"), [](FILE *fp) {
         if (fp) {
             fclose(fp);
@@ -22,62 +24,80 @@ int start_main(int argc, char *argv[]) {
 
     size_t len = 4 * 1024 * 1024;
     shared_ptr<char> buf(new char[len], [](char *p) {
-        if (p)
+        if (p) {
             delete[] p;
+        }
     });
+    assert(buf);
+
+    static bool first_frame = true;
+    static int64_t last_dts = 0;
+    static int64_t duration = 0;
 
     auto decoder = make_shared<PSDecoder>();
-    static int64_t last_dts = 0;
-    static bool first_frame = true;
     decoder->setOnDecode(
         [](int stream, int codecid, int flags, int64_t pts, int64_t dts, const void *data, size_t bytes) {
-#if 0
-            if (codecid == PSI_STREAM_AUDIO_G711A) {
+            if (codecid == PSI_STREAM_H264 || codecid == PSI_STREAM_H265) {
+#if DEBUG_VIDEO
                 int64_t diff = 0;
                 if (first_frame) {
                     last_dts = dts;
                     first_frame = false;
-                } else {
-                    diff = dts - last_dts;
-                    //if (diff == 0)
-                    //    //WarnL << "g711a repeate dts: " << dts;
-                    //    cout << "g711a repeate dts: " << dts << endl;
-                    last_dts = dts;
+                    return;
                 }
-                //DebugL << "g711a bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
-                cout << "g711a bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff << endl;
-            }
-#else
-            if (codecid == PSI_STREAM_H264) {
-                int64_t diff = 0;
-                if (first_frame) {
-                    last_dts = dts;
-                    first_frame = false;
-                } else {
-                    diff = dts - last_dts;
-                    //if (diff == 0)
-                    //    // WarnL << "h264 repeate dts: " << dts;
-                    //    cout << "h264 repeate dts: " << dts << endl;
-                    last_dts = dts;
+                diff = dts - last_dts;
+                if (0 == diff) {
+                    WarnL << "video repeate dts: " << dts;
                 }
-                // DebugL << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
-                cout << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff << endl;
-            }
+                // InfoL << "h264 bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
+
+                if (0 == duration) {
+                    duration = diff;
+                }
+                //打印出前后帧dts间隔发生变化的dts
+                if (duration != diff) {
+                    WarnL << "video dts duration changed: " << last_dts << " --> " << dts << ", diff: " << diff
+                          << ", duration: " << duration;
+                }
+                last_dts = dts;
 #endif
+            } else {
+#if !DEBUG_VIDEO
+                int64_t diff = 0;
+                if (first_frame) {
+                    last_dts = dts;
+                    first_frame = false;
+                    return;
+                }
+                diff = dts - last_dts;
+                if (0 == diff) {
+                    WarnL << "audio repeate dts: " << dts;
+                }
+                // InfoL << "audio bytes: " << bytes << ", pts: " << pts << ", dts: " << dts << ", diff: " << diff;
+
+                if (0 == duration) {
+                    duration = diff;
+                }
+                //打印出前后帧dts间隔发生变化的dts
+                if (duration != diff) {
+                    WarnL << "audio dts duration changed: " << last_dts << " --> " << dts << ", diff: " << diff
+                          << ", u32diff: " << ((uint32_t)dts - (uint32_t)last_dts) << ", duration: " << duration;
+                }
+                last_dts = dts;
+#endif
+            }
         });
     decoder->setOnStream([](int stream, int codecid, const void *extra, size_t bytes, int finish) {
         DebugL << "stream: " << stream << ", codec id: " << codecid << ", finish: " << finish;
     });
 
-    uint8_t *ptr = (uint8_t *)buf.get();
-    size_t last_len = 0;
+    auto ptr = reinterpret_cast<uint8_t *>(buf.get());
     while (1) {
-        size_t read_len = fread(ptr + last_len, 1, len - last_len, read_fp.get());
-        if (read_len <= 0)
+        auto read_len = fread(ptr, 1, len, read_fp.get());
+        if (read_len <= 0) {
             break;
-
-        ssize_t demux_len = decoder->input(ptr, read_len);
-        last_len = len - demux_len;
+        }
+        decoder->input(ptr, read_len);
     }
 
     return 0;
