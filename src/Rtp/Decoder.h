@@ -63,8 +63,14 @@ private:
     Decoder::Ptr _decoder;
     MediaSinkInterface *_sink;
     FrameMerger _merger{FrameMerger::none};
-    toolkit::Ticker _last_unsported_print;
-    Track::Ptr _tracks[TrackMax];
+
+    struct TrackContext {
+        Track::Ptr track;
+        Stamp stamp;
+
+        operator bool() const { return (bool)track; }
+    };
+    TrackContext _tracks[TrackMax];
 };
 
 }//namespace mediakit

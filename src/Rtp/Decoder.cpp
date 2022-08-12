@@ -156,7 +156,7 @@ void DecoderImp::onStream(int stream, int codecid, const void *extra, size_t byt
     }
 }
 
-void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t dts,const void *data,size_t bytes) {
+void DecoderImp::onDecode(int stream, int codecid, int flags, int64_t pts, int64_t dts, const void *data, size_t bytes) {
     pts /= 90;
     dts /= 90;
 
@@ -165,6 +165,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
             if (!_tracks[TrackVideo]) {
                 onTrack(std::make_shared<H264Track>());
             }
+            _tracks[TrackVideo].stamp.revise(dts, pts, dts, pts);
             auto frame = std::make_shared<H264FrameNoCacheAble>((char *) data, bytes, (uint64_t)dts, (uint64_t)pts, prefixSize((char *) data, bytes));
             _merger.inputFrame(frame,[this](uint64_t dts, uint64_t pts, const Buffer::Ptr &buffer, bool) {
                 onFrame(std::make_shared<FrameWrapper<H264FrameNoCacheAble> >(buffer, dts, pts, prefixSize(buffer->data(), buffer->size()), 0));
@@ -176,6 +177,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
             if (!_tracks[TrackVideo]) {
                 onTrack(std::make_shared<H265Track>());
             }
+            _tracks[TrackVideo].stamp.revise(dts, pts, dts, pts);
             auto frame = std::make_shared<H265FrameNoCacheAble>((char *) data, bytes, (uint64_t)dts, (uint64_t)pts, prefixSize((char *) data, bytes));
             _merger.inputFrame(frame,[this](uint64_t dts, uint64_t pts, const Buffer::Ptr &buffer, bool) {
                 onFrame(std::make_shared<FrameWrapper<H265FrameNoCacheAble> >(buffer, dts, pts, prefixSize(buffer->data(), buffer->size()), 0));
@@ -193,6 +195,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
             if (!_tracks[TrackAudio]) {
                 onTrack(std::make_shared<AACTrack>());
             }
+            _tracks[TrackAudio].stamp.revise(dts, pts, dts, pts);
             onFrame(std::make_shared<FrameFromPtr>(CodecAAC, (char *) data, bytes, (uint64_t)dts, 0, ADTS_HEADER_LEN));
             break;
         }
@@ -204,6 +207,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
                 //G711传统只支持 8000/1/16的规格，FFmpeg貌似做了扩展，但是这里不管它了
                 onTrack(std::make_shared<G711Track>(codec, 8000, 1, 16));
             }
+            _tracks[TrackAudio].stamp.revise(dts, pts, dts, pts);
             onFrame(std::make_shared<FrameFromPtr>(codec, (char *) data, bytes, (uint64_t)dts));
             break;
         }
@@ -212,6 +216,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
             if (!_tracks[TrackAudio]) {
                 onTrack(std::make_shared<OpusTrack>());
             }
+            _tracks[TrackAudio].stamp.revise(dts, pts, dts, pts);
             onFrame(std::make_shared<FrameFromPtr>(CodecOpus, (char *) data, bytes, (uint64_t)dts));
             break;
         }
@@ -219,10 +224,7 @@ void DecoderImp::onDecode(int stream,int codecid,int flags,int64_t pts,int64_t d
         default:
             // 海康的 PS 流中会有 codecid 为 0xBD 的包
             if (codecid != 0 && codecid != 0xBD) {
-                if (_last_unsported_print.elapsedTime() / 1000 > 5) {
-                    _last_unsported_print.resetTime();
-                    WarnL << "unsupported codec type:" << getCodecName(codecid) << " " << (int) codecid;
-                }
+                WarnL << "unsupported codec type:" << getCodecName(codecid) << " " << (int)codecid;
             }
             break;
     }
@@ -234,9 +236,24 @@ void DecoderImp::onStream(int stream,int codecid,const void *extra,size_t bytes,
 
 void DecoderImp::onTrack(const Track::Ptr &track) {
     if (!_tracks[track->getTrackType()]) {
-        _tracks[track->getTrackType()] = track;
+        _tracks[track->getTrackType()].track = track;
         _sink->addTrack(track);
         InfoL << "got track: " << track->getCodecName();
+    }
+
+    Stamp *audio = nullptr, *video = nullptr;
+    for (auto &track : _tracks) {
+        if (track) {
+            switch (track.track->getTrackType()) {
+                case TrackVideo: video = &track.stamp; break;
+                case TrackAudio: audio = &track.stamp; break;
+                default: break;
+            }
+        }
+    }
+    if (audio && video) {
+        //音频时间戳同步于视频，因为音频时间戳被修改后不影响播放
+        audio->syncTo(*video);
     }
 }
 
