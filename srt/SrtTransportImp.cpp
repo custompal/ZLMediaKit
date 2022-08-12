@@ -161,24 +161,30 @@ void SrtTransportImp::emitOnPublish() {
         if (!strong_self) {
             return;
         }
-        if (err.empty()) {
-            auto &on_create_media_muxer = getOnCreateMediaMuxer();
-            if (on_create_media_muxer) {
-                strong_self->_muxer = on_create_media_muxer(
-                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
-                    0.0f, option);
-            } else {
-                strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
-                    strong_self->_media_info._vhost, strong_self->_media_info._app, strong_self->_media_info._streamid,
-                    0.0f, option);
+        strong_self->getPoller()->async([weak_self, err, option]() {
+            auto strong_self = weak_self.lock();
+            if (!strong_self) {
+                return;
             }
-            strong_self->_muxer->setMediaListener(strong_self);
-            strong_self->doCachedFunc();
-            InfoP(strong_self) << "允许 srt 推流";
-        } else {
-            WarnP(strong_self) << "禁止 srt 推流:" << err;
-            strong_self->onShutdown(SockException(Err_refused, err));
-        }
+            if (err.empty()) {
+                auto &on_create_media_muxer = getOnCreateMediaMuxer();
+                if (on_create_media_muxer) {
+                    strong_self->_muxer = on_create_media_muxer(
+                        strong_self->_media_info._vhost, strong_self->_media_info._app,
+                        strong_self->_media_info._streamid, 0.0f, option);
+                } else {
+                    strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
+                        strong_self->_media_info._vhost, strong_self->_media_info._app,
+                        strong_self->_media_info._streamid, 0.0f, option);
+                }
+                strong_self->_muxer->setMediaListener(strong_self);
+                strong_self->doCachedFunc();
+                InfoP(strong_self) << "允许 srt 推流";
+            } else {
+                WarnP(strong_self) << "禁止 srt 推流:" << err;
+                strong_self->onShutdown(SockException(Err_refused, err));
+            }
+        });
     };
 
     // 触发推流鉴权事件
