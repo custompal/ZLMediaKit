@@ -241,6 +241,7 @@ void DecoderImp::onTrack(const Track::Ptr &track) {
         InfoL << "got track: " << track->getCodecName();
     }
 
+#if 0
     Stamp *audio = nullptr, *video = nullptr;
     for (auto &track : _tracks) {
         if (track) {
@@ -255,6 +256,7 @@ void DecoderImp::onTrack(const Track::Ptr &track) {
         //音频时间戳同步于视频，因为音频时间戳被修改后不影响播放
         audio->syncTo(*video);
     }
+#endif
 }
 
 void DecoderImp::onFrame(const Frame::Ptr &frame) {

@@ -31,6 +31,8 @@ public:
 
 private:
     int64_t _last_stamp = 0;
+    //保存最新的时间戳增量
+    int64_t _delta_stamp = 0;
 };
 
 //该类解决时间戳回环、回退问题

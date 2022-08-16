@@ -38,8 +38,12 @@ PSDecoder::PSDecoder() {
         if(thiz->_on_decode){
             //DebugL << "codec id: " << codecid << ", pts: " << pts << ", dts: " << dts;
             if (isAudio(codecid)) {
-                if (0 == thiz->_audio_clock_rate)
+                if (!thiz->_audio_clock_rate) {
                     thiz->guessAudioClockRate(codecid, dts);
+                }
+                if (!thiz->_audio_clock_rate) {
+                    return 0;
+                }
                 thiz->modifyAudioTimestamp(pts, dts);
             }
             thiz->_on_decode(stream, codecid, flags, pts, dts, data, bytes);
