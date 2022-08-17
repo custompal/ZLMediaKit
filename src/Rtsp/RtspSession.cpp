@@ -197,6 +197,50 @@ ssize_t RtspSession::getContentLength(Parser &parser) {
     return RtspSplitter::getContentLength(parser);
 }
 
+void RtspSession::getMediaSockInfo(vector<Session::MediaSockInfo> &vec_info) {
+    switch (_rtp_type) {
+        case Rtsp::RTP_TCP: {
+            Session::MediaSockInfo info;
+            info.type = "All";
+            info.socket = getSock();
+            vec_info.emplace_back(info);
+        } break;
+        case Rtsp::RTP_UDP: {
+            if (_rtp_socks[0]) {
+                Session::MediaSockInfo info;
+                info.type = "Video";
+                info.socket = _rtp_socks[0];
+                vec_info.emplace_back(info);
+            }
+            if (_rtp_socks[1]) {
+                Session::MediaSockInfo info;
+                info.type = "Audio";
+                info.socket = _rtp_socks[1];
+                vec_info.emplace_back(info);
+            }
+        } break;
+        case Rtsp::RTP_MULTICAST: {
+            int iSrvPort = _multicaster->getMultiCasterPort(TrackVideo);
+            auto pSockRtcp = UDPServer::Instance().getSock(*this, get_local_ip().data(), 2 * 0 + 1, iSrvPort + 1);
+            if (pSockRtcp) {
+                Session::MediaSockInfo info;
+                info.type = "Video";
+                info.socket = pSockRtcp;
+                vec_info.emplace_back(info);
+            }
+            iSrvPort = _multicaster->getMultiCasterPort(TrackAudio);
+            pSockRtcp = UDPServer::Instance().getSock(*this, get_local_ip().data(), 2 * 1 + 1, iSrvPort + 1);
+            if (pSockRtcp) {
+                Session::MediaSockInfo info;
+                info.type = "Audio";
+                info.socket = pSockRtcp;
+                vec_info.emplace_back(info);
+            }
+        } break;
+        default: break;
+    }
+}
+
 void RtspSession::handleReq_Options(const Parser &parser) {
     //支持这些命令
     sendRtspResponse("200 OK",{"Public" , "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, ANNOUNCE, RECORD, SET_PARAMETER, GET_PARAMETER"});
