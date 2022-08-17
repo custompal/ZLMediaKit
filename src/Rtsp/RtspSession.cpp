@@ -220,20 +220,20 @@ void RtspSession::getMediaSockInfo(vector<Session::MediaSockInfo> &vec_info) {
             }
         } break;
         case Rtsp::RTP_MULTICAST: {
-            int iSrvPort = _multicaster->getMultiCasterPort(TrackVideo);
-            auto pSockRtcp = UDPServer::Instance().getSock(*this, get_local_ip().data(), 2 * 0 + 1, iSrvPort + 1);
-            if (pSockRtcp) {
+            int srv_port = _multicaster->getMultiCasterPort(TrackVideo);
+            auto rtp_sock = UDPServer::Instance().getSock(*this, get_local_ip().data(), 0, srv_port);
+            if (rtp_sock) {
                 Session::MediaSockInfo info;
                 info.type = "Video";
-                info.socket = pSockRtcp;
+                info.socket = rtp_sock;
                 vec_info.emplace_back(info);
             }
-            iSrvPort = _multicaster->getMultiCasterPort(TrackAudio);
-            pSockRtcp = UDPServer::Instance().getSock(*this, get_local_ip().data(), 2 * 1 + 1, iSrvPort + 1);
-            if (pSockRtcp) {
+            srv_port = _multicaster->getMultiCasterPort(TrackAudio);
+            rtp_sock = UDPServer::Instance().getSock(*this, get_local_ip().data(), 2, srv_port);
+            if (rtp_sock) {
                 Session::MediaSockInfo info;
                 info.type = "Audio";
-                info.socket = pSockRtcp;
+                info.socket = rtp_sock;
                 vec_info.emplace_back(info);
             }
         } break;

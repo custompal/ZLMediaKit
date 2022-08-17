@@ -98,6 +98,7 @@ protected:
     //收到RTCP包回调
     virtual void onRtcpPacket(int track_idx, SdpTrack::Ptr &track, const char *data, size_t len);
 
+    /////Session override////
     //获取媒体发送信息
     void getMediaSockInfo(std::vector<toolkit::Session::MediaSockInfo> &vec_info) override;
 
