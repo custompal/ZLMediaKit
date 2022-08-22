@@ -50,6 +50,7 @@ enum class MediaOriginType : uint8_t {
 
 std::string getOriginTypeString(MediaOriginType type);
 
+class RtpSender;
 class MediaSource;
 class MediaSourceEvent {
 public:
@@ -111,6 +112,18 @@ public:
         uint16_t dst_port;
         // 发送目标主机地址，可以是ip或域名
         std::string dst_url;
+
+        // 重连间隔时间以及次数
+        float reconn_time = 5.0f;
+        int reconn_count = 10;
+        // 媒体编码参数
+        std::string media_params;
+        // RtpSender对象标识
+        std::string send_key;
+        // 发起调用的poller
+        toolkit::EventPoller::Ptr initiated_poller;
+        // TODO
+        std::shared_ptr<RtpSender> rtp_sender;
 
         //udp发送时，是否开启rr rtcp接收超时判断
         bool udp_rtcp_timeout = false;

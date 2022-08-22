@@ -26,6 +26,29 @@ RtpSender::RtpSender() {
 }
 
 void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const function<void(uint16_t local_port, const SockException &ex)> &cb){
+    if (!_poller->isCurrentThread()) {
+        auto poller = EventPoller::getCurrentPoller();
+        auto tmp_cb = [poller, cb](uint16_t local_port, const SockException &ex) {
+            poller->async_first([cb, local_port, ex]() { cb(local_port, ex); });
+        };
+        const_cast<MediaSourceEvent::SendRtpArgs &>(args).initiated_poller = poller;
+        weak_ptr<RtpSender> weak_self = shared_from_this();
+        _poller->async_first([args, weak_self, tmp_cb]() {
+            auto strong_self = weak_self.lock();
+            if (!strong_self) {
+                tmp_cb(0, SockException(Err_other, StrPrinter << "RtpSender对象已销毁"));
+                return;
+            }
+            strong_self->startSend(args, tmp_cb);
+        });
+        return;
+    }
+    if (!args.initiated_poller) {
+        const_cast<MediaSourceEvent::SendRtpArgs &>(args).initiated_poller = _poller;
+    }
+    // TODO
+    const_cast<MediaSourceEvent::SendRtpArgs &>(args).rtp_sender = nullptr;
+
     _args = args;
     if (!_interface) {
         //重连时不重新创建对象
@@ -54,13 +77,19 @@ void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const funct
                 //从端口池获取随机端口
                 makeSockPair(pr, "::", false, false);
             }
+            //这里改为先回调再处理监听结果
             // tcp服务器默认开启5秒
-            auto delay_task = _poller->doDelayTask(_args.tcp_passive_close_delay_ms, [tcp_listener, cb]() mutable {
-                cb(0, SockException(Err_timeout, "wait tcp connection timeout"));
+            auto delay_task = _poller->doDelayTask(_args.tcp_passive_close_delay_ms, [weak_self, tcp_listener/*, cb*/]() mutable {
+                //cb(0, SockException(Err_timeout, "wait tcp connection timeout"));
                 tcp_listener = nullptr;
+                auto strong_self = weak_self.lock();
+                if (!strong_self) {
+                    return 0;
+                }
+                strong_self->onErr(SockException(Err_timeout, "wait tcp connection timeout"));
                 return 0;
             });
-            tcp_listener->setOnAccept([weak_self, cb, delay_task](Socket::Ptr &sock, std::shared_ptr<void> &complete) {
+            tcp_listener->setOnAccept([weak_self/*, cb*/, delay_task](Socket::Ptr &sock, std::shared_ptr<void> &complete) {
                 auto strong_self = weak_self.lock();
                 if (!strong_self) {
                     return;
@@ -69,10 +98,12 @@ void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const funct
                 delay_task->cancel();
                 strong_self->_socket_rtp = sock;
                 strong_self->onConnect();
-                cb(sock->get_local_port(), SockException());
+                //cb(sock->get_local_port(), SockException());
                 InfoL << "accept connection from:" << sock->get_peer_ip() << ":" << sock->get_peer_port();
             });
-            InfoL << "start tcp passive server on:" << tcp_listener->get_local_port();
+            auto local_port = tcp_listener->get_local_port();
+            InfoL << "start tcp passive server on:" << local_port;
+            cb(local_port, SockException());
         } catch (std::exception &ex) {
             cb(0, SockException(Err_other, ex.what()));
             return;
@@ -224,8 +255,12 @@ bool RtpSender::inputFrame(const Frame::Ptr &frame) {
     return _is_connect ? _interface->inputFrame(frame) : false;
 }
 
+bool RtpSender::inputRtpPayload(const Frame::Ptr &frame) {
+    return _is_connect ? _interface->inputRtpPayload(frame) : false;
+}
+
 void RtpSender::onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check) {
-    if (!_socket_rtcp) {
+    if (!_socket_rtcp || !_rtcp_context) {
         return;
     }
     auto rtp = static_pointer_cast<RtpPacket>(buf);
@@ -255,7 +290,7 @@ void RtpSender::onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check) {
 void RtpSender::onClose() {
     auto cb = _on_close;
     if (cb) {
-        _poller->async([cb]() { cb(); }, false);
+        _args.initiated_poller->async([cb]() { cb(); }, false);
     }
 }
 
@@ -290,10 +325,25 @@ void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
 void RtpSender::onErr(const SockException &ex, bool is_connect) {
     _is_connect = false;
 
+    if (!_args.reconn_time) {
+        WarnL << "停止发送 rtp:" << _args.dst_url << ":" << _args.dst_port << ", 原因为:" << ex.what();
+        onClose();
+        return;
+    }
+    _retry_count++;
+    if (_retry_count > _args.reconn_count) {
+        WarnL << "重试了" << _retry_count << "次，停止发送 rtp : " << _args.dst_url << " : " << _args.dst_port
+              << ", 原因为: " << ex.what();
+        onClose();
+        return;
+    }
+
     if (_args.passive) {
         WarnL << "tcp passive connection lost: " << ex.what();
         //tcp被动模式，如果对方断开连接，应该停止发送rtp
         onClose();
+        //tcp被动模式暂时不重试
+        return;
     } else {
         //监听socket断开事件，方便重连
         if (is_connect) {

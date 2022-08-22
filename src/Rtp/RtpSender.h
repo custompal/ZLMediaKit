@@ -30,12 +30,17 @@ public:
      * @param args 发送参数
      * @param cb 连接目标端口是否成功的回调
      */
-    void startSend(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
+    virtual void startSend(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
 
     /**
      * 输入帧数据
      */
     bool inputFrame(const Frame::Ptr &frame) override;
+
+    /**
+     * 输入rtp负载数据
+     */
+    bool inputRtpPayload(const mediakit::Frame::Ptr &frame) override;
 
     /**
      * 添加track，内部会调用Track的clone方法
@@ -68,7 +73,7 @@ private:
     void onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check);
     void onClose();
 
-private:
+protected:
     bool _is_connect = false;
     MediaSourceEvent::SendRtpArgs _args;
     toolkit::Socket::Ptr _socket_rtp;
@@ -80,6 +85,9 @@ private:
     toolkit::Ticker _rtcp_send_ticker;
     toolkit::Ticker _rtcp_recv_ticker;
     std::function<void()> _on_close;
+
+    //重连相关
+    int _retry_count = 0;
 };
 
 }//namespace mediakit
