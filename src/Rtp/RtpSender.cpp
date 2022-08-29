@@ -297,6 +297,11 @@ void RtpSender::onClose(const SockException &ex) {
 
 //此函数可能在其他线程执行
 void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
+    if (!_is_connect) {
+        //连接成功后才能发送数据
+        return;
+    }
+
     if (!_poller->isCurrentThread()) {
         weak_ptr<RtpSender> weak_self = shared_from_this();
         _poller->async([rtp_list, weak_self]() {
@@ -306,11 +311,6 @@ void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
             }
             strong_self->onFlushRtpList(rtp_list);
         });
-        return;
-    }
-
-    if(!_is_connect){
-        //连接成功后才能发送数据
         return;
     }
 
