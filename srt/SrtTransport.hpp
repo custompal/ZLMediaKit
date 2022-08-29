@@ -141,6 +141,8 @@ private:
     // 保持发送的握手消息，防止丢失重发
     HandshakePacket::Ptr _handleshake_res;
 
+    Timer::Ptr _handleshake_timer;
+
     ResourcePool<BufferRaw> _packet_pool;
 };
 

@@ -22,7 +22,7 @@ class RtpSender : public MediaSinkInterface, public std::enable_shared_from_this
 public:
     typedef std::shared_ptr<RtpSender> Ptr;
 
-    RtpSender();
+    RtpSender(toolkit::EventPoller::Ptr poller = nullptr);
     ~RtpSender() override = default;
 
     /**
@@ -59,7 +59,7 @@ public:
      */
     virtual void resetTracks() override;
 
-    void setOnClose(std::function<void()> on_close);
+    void setOnClose(std::function<void(const toolkit::SockException &ex)> on_close);
 
 private:
     //合并写输出
@@ -71,7 +71,7 @@ private:
     void createRtcpSocket();
     void onRecvRtcp(RtcpHeader *rtcp);
     void onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check);
-    void onClose();
+    void onClose(const toolkit::SockException &ex);
 
 protected:
     bool _is_connect = false;
@@ -79,15 +79,15 @@ protected:
     toolkit::Socket::Ptr _socket_rtp;
     toolkit::Socket::Ptr _socket_rtcp;
     toolkit::EventPoller::Ptr _poller;
-    toolkit::Timer::Ptr _connect_timer;
     MediaSinkInterface::Ptr _interface;
     std::shared_ptr<RtcpContext> _rtcp_context;
     toolkit::Ticker _rtcp_send_ticker;
     toolkit::Ticker _rtcp_recv_ticker;
-    std::function<void()> _on_close;
+    std::function<void(const toolkit::SockException &ex)> _on_close;
 
     //重连相关
     int _retry_count = 0;
+    toolkit::Timer::Ptr _connect_timer;
 };
 
 }//namespace mediakit

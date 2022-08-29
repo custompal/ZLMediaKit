@@ -20,8 +20,8 @@ using namespace toolkit;
 
 namespace mediakit{
 
-RtpSender::RtpSender() {
-    _poller = EventPollerPool::Instance().getPoller();
+RtpSender::RtpSender(EventPoller::Ptr poller) {
+    _poller = poller ? std::move(poller) : EventPollerPool::Instance().getPoller();
     _socket_rtp = Socket::createSocket(_poller, false);
 }
 
@@ -229,7 +229,7 @@ void RtpSender::onConnect(){
     _socket_rtp->setOnErr([weak_self](const SockException &err) {
         auto strong_self = weak_self.lock();
         if (strong_self) {
-            strong_self->onErr(err);
+            strong_self->onErr(err, true);
         }
     });
     //获取本地端口，断开重连后确保端口不变
@@ -283,94 +283,100 @@ void RtpSender::onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check) {
         //接收rr rtcp超时
         WarnL << "recv rr rtcp timeout";
         _rtcp_recv_ticker.resetTime();
-        onClose();
+        onClose(SockException(Err_timeout, "recv rr rtcp timeout"));
     }
 }
 
-void RtpSender::onClose() {
+void RtpSender::onClose(const SockException &ex) {
     auto cb = _on_close;
     if (cb) {
-        _args.initiated_poller->async([cb]() { cb(); }, false);
+        //在下次循环时触发onClose，原因是防止遍历map时删除元素
+        _args.initiated_poller->async([cb, ex]() { cb(ex); }, false);
     }
 }
 
-//此函数在其他线程执行
+//此函数可能在其他线程执行
 void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
+    if (!_poller->isCurrentThread()) {
+        weak_ptr<RtpSender> weak_self = shared_from_this();
+        _poller->async([rtp_list, weak_self]() {
+            auto strong_self = weak_self.lock();
+            if (!strong_self) {
+                return;
+            }
+            strong_self->onFlushRtpList(rtp_list);
+        });
+        return;
+    }
+
     if(!_is_connect){
         //连接成功后才能发送数据
         return;
     }
 
-    weak_ptr<RtpSender> weak_self = shared_from_this();
-    _poller->async([rtp_list, weak_self]() {
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return;
+    size_t i = 0;
+    auto size = rtp_list->size();
+    rtp_list->for_each([&](Buffer::Ptr &packet) {
+        if (_args.is_udp) {
+            onSendRtpUdp(packet, i == 0);
+            // udp模式，rtp over tcp前4个字节可以忽略
+            _socket_rtp->send(std::make_shared<BufferRtp>(std::move(packet), RtpPacket::kRtpTcpHeaderSize), nullptr, 0, ++i == size);
+        } else {
+            // tcp模式, rtp over tcp前2个字节可以忽略,只保留后续rtp长度的2个字节
+            _socket_rtp->send(std::make_shared<BufferRtp>(std::move(packet), 2), nullptr, 0, ++i == size);
         }
-        size_t i = 0;
-        auto size = rtp_list->size();
-        rtp_list->for_each([&](Buffer::Ptr &packet) {
-            if (strong_self->_args.is_udp) {
-                strong_self->onSendRtpUdp(packet, i == 0);
-                //udp模式，rtp over tcp前4个字节可以忽略
-                strong_self->_socket_rtp->send(std::make_shared<BufferRtp>(std::move(packet),  RtpPacket::kRtpTcpHeaderSize), nullptr, 0, ++i == size);
-            } else {
-                //tcp模式, rtp over tcp前2个字节可以忽略,只保留后续rtp长度的2个字节
-                strong_self->_socket_rtp->send(std::make_shared<BufferRtp>(std::move(packet), 2), nullptr, 0, ++i == size);
-            }
-        });
     });
 }
 
 void RtpSender::onErr(const SockException &ex, bool is_connect) {
     _is_connect = false;
 
+    if (_args.passive) {
+        WarnL << "tcp passive connection lost: " << ex.what();
+        //tcp被动模式，如果对方断开连接，应该停止发送rtp
+        onClose(ex);
+        return;
+    }
+    if (!is_connect) {
+        WarnL << "send rtp connection lost: " << ex.what();
+        onClose(ex);
+        return;
+    }
     if (!_args.reconn_time) {
         WarnL << "停止发送 rtp:" << _args.dst_url << ":" << _args.dst_port << ", 原因为:" << ex.what();
-        onClose();
+        onClose(ex);
         return;
     }
     _retry_count++;
     if (_retry_count > _args.reconn_count) {
         WarnL << "重试了" << _retry_count << "次，停止发送 rtp : " << _args.dst_url << " : " << _args.dst_port
               << ", 原因为: " << ex.what();
-        onClose();
+        onClose(ex);
         return;
     }
 
-    if (_args.passive) {
-        WarnL << "tcp passive connection lost: " << ex.what();
-        //tcp被动模式，如果对方断开连接，应该停止发送rtp
-        onClose();
-        //tcp被动模式暂时不重试
-        return;
-    } else {
-        //监听socket断开事件，方便重连
-        if (is_connect) {
-            WarnL << "重连" << _args.dst_url << ":" << _args.dst_port << "失败, 原因为:" << ex.what();
-        } else {
-            WarnL << "停止发送 rtp:" << _args.dst_url << ":" << _args.dst_port << ", 原因为:" << ex.what();
-        }
-    }
-
+    WarnL << "重连" << _args.dst_url << ":" << _args.dst_port << "失败, 原因为:" << ex.what();
     weak_ptr<RtpSender> weak_self = shared_from_this();
-    _connect_timer = std::make_shared<Timer>(10.0f, [weak_self]() {
-        auto strong_self = weak_self.lock();
-        if (!strong_self) {
-            return false;
-        }
-        strong_self->startSend(strong_self->_args, [weak_self](uint16_t local_port, const SockException &ex){
+    _connect_timer = std::make_shared<Timer>(
+        _args.reconn_time,
+        [weak_self]() {
             auto strong_self = weak_self.lock();
-            if (strong_self && ex) {
-                //连接失败且本对象未销毁，那么重试连接
-                strong_self->onErr(ex, true);
+            if (!strong_self) {
+                return false;
             }
-        });
-        return false;
-    }, _poller);
+            strong_self->startSend(strong_self->_args, [weak_self](uint16_t local_port, const SockException &ex) {
+                auto strong_self = weak_self.lock();
+                if (strong_self && ex) {
+                    //连接失败且本对象未销毁，那么重试连接
+                    strong_self->onErr(ex, true);
+                }
+            });
+            return false;
+        },
+        _poller);
 }
 
-void RtpSender::setOnClose(std::function<void()> on_close){
+void RtpSender::setOnClose(std::function<void(const toolkit::SockException &ex)> on_close){
     _on_close = std::move(on_close);
 }
 
