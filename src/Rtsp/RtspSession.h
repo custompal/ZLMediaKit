@@ -67,6 +67,14 @@ public:
     void onError(const toolkit::SockException &err) override;
     void onManager() override;
 
+    //媒体传输socket信息
+    struct MediaSockInfo {
+        std::string type; //媒体类型
+        toolkit::Socket::Ptr socket; //媒体发送的socket
+    };
+    //获取媒体传输socket信息
+    std::vector<MediaSockInfo> getMediaSockInfo();
+
 protected:
     /////RtspSplitter override/////
     //收到完整的rtsp包回调，包括sdp等content数据
@@ -96,10 +104,6 @@ protected:
     ssize_t send(toolkit::Buffer::Ptr pkt) override;
     //收到RTCP包回调
     virtual void onRtcpPacket(int track_idx, SdpTrack::Ptr &track, const char *data, size_t len);
-
-    /////Session override////
-    //获取媒体发送信息
-    void getMediaSockInfo(std::vector<toolkit::Session::MediaSockInfo> &vec_info) override;
 
 private:
     //处理options方法,获取服务器能力
