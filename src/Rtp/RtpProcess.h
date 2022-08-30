@@ -88,11 +88,8 @@ public:
     uint16_t get_peer_port() override;
     std::string getIdentifier() const override;
 
-    int getTotalReaderCount();
-    void setListener(const std::weak_ptr<MediaSourceEvent> &listener);
-
     void setHelper(const std::weak_ptr<RtcpContext> help);
-    int getLossRate(MediaSource &sender, TrackType type) override;
+
 protected:
     bool inputFrame(const Frame::Ptr &frame) override;
     bool inputRtpPayload(const Frame::Ptr &frame) override;
@@ -105,6 +102,7 @@ protected:
     std::string getOriginUrl(MediaSource &sender) const override;
     std::shared_ptr<SockInfo> getOriginSock(MediaSource &sender) const override;
     toolkit::EventPoller::Ptr getOwnerPoller(MediaSource &sender) override;
+    int getLossRate(MediaSource &sender, TrackType type) override;
 
 private:
     void emitOnPublish();
