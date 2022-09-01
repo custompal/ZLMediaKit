@@ -38,9 +38,13 @@ public:
      * @param enable_tcp 是否启用tcp服务器
      * @param local_ip 绑定的本地网卡ip
      * @param re_use_port 是否设置socket为re_use属性
+     * @param ssrc 指定的ssrc
+     * @param rtp_process_name rtp处理器名称, 默认使用GB28181Process
      */
-    void start(uint16_t local_port, const std::string &stream_id = "", bool enable_tcp = true,
-               const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0);
+    virtual void start(
+        uint16_t local_port, const std::string &stream_id = "", bool enable_tcp = true,
+        const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0,
+        const std::string &rtp_process_name = "GB28181");
 
     /**
      * 获取绑定的本地端口
@@ -58,6 +62,42 @@ protected:
     toolkit::TcpServer::Ptr _tcp_server;
     RtpProcess::Ptr _rtp_process;
     std::function<void()> _on_clearup;
+};
+
+/**
+ * RTP服务, TCP主动模式
+ */
+class RtpTcpActiveServer
+    : public RtpServer
+    , public std::enable_shared_from_this<RtpTcpActiveServer> {
+public:
+    RtpTcpActiveServer();
+    ~RtpTcpActiveServer();
+
+    /**
+     * 开启服务器，可能抛异常
+     * @param local_port 本地端口，0时为随机端口
+     * @param stream_id 流id，置空则使用ssrc
+     * @param enable_tcp 是否启用tcp服务器
+     * @param local_ip 绑定的本地网卡ip
+     * @param re_use_port 是否设置socket为re_use属性
+     * @param ssrc 指定的ssrc
+     * @param rtp_process_name rtp处理器名称, 默认使用GB28181Process
+     */
+    virtual void start(
+        uint16_t local_port, const std::string &stream_id = "", bool enable_tcp = true,
+        const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0,
+        const std::string &rtp_process_name = "GB28181") override;
+
+    /**
+     * 连接到tcp服务
+     * @param srv_url 服务器地址
+     * @param srv_port 服务器端口
+     */
+    void connectToSrv(const std::string &srv_url, uint16_t srv_port);
+
+private:
+    mediakit::RtpSession::Ptr _rtp_session;
 };
 
 }//namespace mediakit

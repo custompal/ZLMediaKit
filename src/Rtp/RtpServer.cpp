@@ -10,6 +10,8 @@
 
 #if defined(ENABLE_RTPPROXY)
 #include "Util/uv_errno.h"
+#include "GB28181Process.h"
+#include "H323Process.h"
 #include "RtpServer.h"
 #include "RtpSelector.h"
 #include "Rtcp/RtcpContext.h"
@@ -91,7 +93,9 @@ private:
     std::shared_ptr<struct sockaddr_storage> _rtcp_addr;
 };
 
-void RtpServer::start(uint16_t local_port, const string &stream_id, bool enable_tcp, const char *local_ip, bool re_use_port, uint32_t ssrc) {
+void RtpServer::start(
+    uint16_t local_port, const string &stream_id, bool enable_tcp, const char *local_ip, bool re_use_port,
+    uint32_t ssrc, const std::string &rtp_process_name) {
     //创建udp服务器
     Socket::Ptr rtp_socket = Socket::createSocket(nullptr, true);
     Socket::Ptr rtcp_socket = Socket::createSocket(nullptr, true);
@@ -129,21 +133,33 @@ void RtpServer::start(uint16_t local_port, const string &stream_id, bool enable_
         RtcpHelper::Ptr helper = std::make_shared<RtcpHelper>(std::move(rtcp_socket), 90000);
         process->setHelper(helper);
         helper->startRtcp();
-        rtp_socket->setOnRead([rtp_socket, process, helper, ssrc](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
-            RtpHeader *header = (RtpHeader *)buf->data();
-            auto rtp_ssrc = ntohl(header->ssrc);
-            if (ssrc && rtp_ssrc != ssrc) {
-                WarnL << "ssrc不匹配,rtp已丢弃:" << rtp_ssrc << " != " << ssrc;
+        if (!process->getProcess()) {
+            if (0 == strcasecmp(rtp_process_name.c_str(), "GB28181")) {
+                process->setProcess(std::make_shared<GB28181Process>(process->getMediaInfo(), process.get()));
             } else {
-                process->inputRtp(true, rtp_socket, buf->data(), buf->size(), addr);
-                helper->onRecvRtp(buf, addr, addr_len);
+                process->setProcess(std::make_shared<H323Process>(process->getMediaInfo(), process.get()));
             }
+        }
+        bool check_ssrc = (0 == strcasecmp(rtp_process_name.c_str(), "GB28181"));
+        rtp_socket->setOnRead([rtp_socket, process, helper, check_ssrc,
+                               ssrc](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+            if (check_ssrc) {
+                RtpHeader *header = (RtpHeader *)buf->data();
+                auto rtp_ssrc = ntohl(header->ssrc);
+                if (ssrc && rtp_ssrc != ssrc) {
+                    WarnL << "ssrc不匹配,rtp已丢弃:" << rtp_ssrc << " != " << ssrc;
+                    return;
+                }
+            }
+            process->inputRtp(true, rtp_socket, buf->data(), buf->size(), addr);
+            helper->onRecvRtp(buf, addr, addr_len);
         });
     } else {
 #if 1
         //单端口多线程接收多个流，根据ssrc区分流
         udp_server = std::make_shared<UdpServer>(rtp_socket->getPoller());
         (*udp_server)[RtpSession::kIsUDP] = 1;
+        (*udp_server)[RtpSession::kSSRC] = to_string(ssrc);
         udp_server->start<RtpSession>(rtp_socket->get_local_port(), local_ip);
         rtp_socket = nullptr;
 #else
@@ -180,6 +196,97 @@ void RtpServer::setOnDetach(const function<void()> &cb) {
 
 uint16_t RtpServer::getPort() {
     return _udp_server ? _udp_server->getPort() : _rtp_socket->get_local_port();
+}
+
+/************************* TCP主动模式 *************************/
+RtpTcpActiveServer::RtpTcpActiveServer() {}
+
+RtpTcpActiveServer::~RtpTcpActiveServer() {
+    InfoL;
+}
+
+void RtpTcpActiveServer::start(
+    uint16_t local_port, const std::string &stream_id, bool enable_tcp, const char *local_ip, bool re_use_port,
+    uint32_t ssrc, const std::string &rtp_process_name) {
+    //获取可用端口
+    Socket::Ptr rtp_socket = Socket::createSocket(nullptr, true);
+    Socket::Ptr rtcp_socket = Socket::createSocket(nullptr, true);
+
+    if (local_port == 0) {
+        //随机端口，rtp端口采用偶数
+        auto pair = std::make_pair(rtp_socket, rtcp_socket);
+        makeSockPair(pair, local_ip, re_use_port);
+    } else if (!rtp_socket->bindUdpSock(local_port, local_ip, re_use_port)) {
+        //用户指定端口
+        throw std::runtime_error(
+            StrPrinter << "创建rtp端口 " << local_ip << ":" << local_port << " 失败:" << get_uv_errmsg(true));
+    } else if (rtcp_socket && !rtcp_socket->bindUdpSock(rtp_socket->get_local_port() + 1, local_ip, re_use_port)) {
+        // rtcp端口
+        throw std::runtime_error(
+            StrPrinter << "创建rtcp端口 " << local_ip << ":" << rtp_socket->get_local_port() + 1
+                        << " 失败:" << get_uv_errmsg(true));
+    }
+
+    //加大发送缓存,防止udp丢包之类的问题
+    SockUtil::setSendBuf(rtp_socket->rawFD(), 4 * 1024 * 1024);
+        //关闭tcp no_delay并开启MSG_MORE, 提高发送性能
+    SockUtil::setNoDelay(rtp_socket->rawFD(), false);
+    rtp_socket->setSendFlags(SOCKET_DEFAULE_FLAGS | FLAG_MORE);
+
+    //创建虚拟服务器
+    Server::Ptr server = std::make_shared<Server>(rtp_socket->getPoller());
+    (*server)[RtpSession::kStreamID] = stream_id;
+    (*server)[RtpSession::kIsUDP] = 0;
+    (*server)[RtpSession::kSSRC] = to_string(ssrc);
+
+    //创建虚拟rtp会话
+    auto rtp_session = std::make_shared<RtpSession>(rtp_socket);
+    rtp_session->attachServer(*server);
+
+    rtp_socket->setOnRead([rtp_session](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+        rtp_session->onRecv(buf);
+    });
+    weak_ptr<RtpTcpActiveServer> weak_self = shared_from_this();
+    rtp_socket->setOnErr([weak_self](const SockException &err) {
+        auto strong_self = weak_self.lock();
+        if (strong_self) {
+            strong_self->_rtp_session->onError(err);
+        }
+    });
+
+    RtpProcess::Ptr process = RtpSelector::Instance().getProcess(stream_id, true);
+    _on_clearup = [rtp_socket, process, stream_id]() {
+        if (rtp_socket) {
+            //去除循环引用
+            rtp_socket->setOnRead(nullptr);
+        }
+        if (process) {
+            //删除rtp处理器
+            RtpSelector::Instance().delProcess(stream_id, process.get());
+        }
+    };
+
+    _rtp_socket = std::move(rtp_socket);
+    _rtp_process = std::move(process);
+    _rtp_session = std::move(rtp_session);
+}
+
+void RtpTcpActiveServer::connectToSrv(const std::string &srv_url, uint16_t srv_port) {
+    weak_ptr<RtpTcpActiveServer> weak_self = shared_from_this();
+    _rtp_socket->connect(
+        srv_url, srv_port,
+        [srv_url, srv_port, weak_self](const SockException &err) {
+            auto strong_self = weak_self.lock();
+            if (!strong_self) {
+                return;
+            }
+            if (err) {
+                WarnL << err.what();
+                return;
+            }
+            DebugL << "Connect to " << srv_url << ":" << srv_port << " success!";
+        },
+        5.0F, "::", _rtp_socket->get_local_port());
 }
 
 }//namespace mediakit
