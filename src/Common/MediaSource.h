@@ -124,8 +124,8 @@ public:
         // 重连间隔时间以及次数
         float reconn_time = 5.0f;
         int reconn_count = 10;
-        // 媒体编码参数
-        std::string media_params;
+        // 目标媒体参数
+        std::vector<Track::Ptr> codec_tracks;
         // RtpSender对象标识
         std::string send_key;
         // 发起调用的poller
