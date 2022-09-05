@@ -115,7 +115,6 @@ void PlayerProxy::setDirectProxy() {
     }
     if (mediaSource) {
         setMediaSource(mediaSource);
-        mediaSource->setListener(shared_from_this());
     }
 }
 
@@ -183,6 +182,10 @@ string PlayerProxy::getOriginUrl(MediaSource &sender) const {
 
 std::shared_ptr<SockInfo> PlayerProxy::getOriginSock(MediaSource &sender) const {
     return getSockInfo();
+}
+
+float PlayerProxy::getLossRate(MediaSource &sender, TrackType type) {
+    return getPacketLossRate(type);
 }
 
 void PlayerProxy::onPlaySuccess() {

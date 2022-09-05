@@ -18,7 +18,7 @@
 
 namespace mediakit {
 
-class RtpProcess : public toolkit::SockInfo, public MediaSinkInterface, public MediaSourceEventInterceptor, public std::enable_shared_from_this<RtpProcess>{
+class RtpProcess : public RtcpContextForRecv, public toolkit::SockInfo, public MediaSinkInterface, public MediaSourceEventInterceptor, public std::enable_shared_from_this<RtpProcess>{
 public:
     typedef std::shared_ptr<RtpProcess> Ptr;
     friend class RtpProcessHelper;
@@ -88,8 +88,6 @@ public:
     uint16_t get_peer_port() override;
     std::string getIdentifier() const override;
 
-    void setHelper(const std::weak_ptr<RtcpContext> help);
-
 protected:
     bool inputFrame(const Frame::Ptr &frame) override;
     bool inputRtpPayload(const Frame::Ptr &frame) override;
@@ -102,7 +100,7 @@ protected:
     std::string getOriginUrl(MediaSource &sender) const override;
     std::shared_ptr<SockInfo> getOriginSock(MediaSource &sender) const override;
     toolkit::EventPoller::Ptr getOwnerPoller(MediaSource &sender) override;
-    int getLossRate(MediaSource &sender, TrackType type) override;
+    float getLossRate(MediaSource &sender, TrackType type) override;
 
 private:
     void emitOnPublish();
@@ -126,7 +124,6 @@ private:
     toolkit::Ticker _last_check_alive;
     std::recursive_mutex _func_mtx;
     std::deque<std::function<void()> > _cached_func;
-    std::weak_ptr<RtcpContext> _help;
 };
 
 }//namespace mediakit

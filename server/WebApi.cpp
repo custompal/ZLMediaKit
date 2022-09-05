@@ -341,6 +341,7 @@ Value makeMediaSourceJson(MediaSource &media){
 
     //getLossRate有线程安全问题；使用getMediaInfo接口才能获取丢包率；getMediaList接口将忽略丢包率
     auto current_thread = media.getOwnerPoller()->isCurrentThread();
+    float last_loss = -1;
     for(auto &track : media.getTracks(false)){
         Value obj;
         auto codec_type = track->getTrackType();
@@ -349,7 +350,14 @@ Value makeMediaSourceJson(MediaSource &media){
         obj["ready"] = track->ready();
         obj["codec_type"] = codec_type;
         if (current_thread) {
-            obj["loss"] = media.getLossRate(codec_type);
+            //rtp推流只有一个统计器，但是可能有多个track，如果短时间多次获取间隔丢包率，第二次会获取为-1
+            auto loss = media.getLossRate(codec_type);
+            if (loss == -1) {
+                loss = last_loss;
+            } else {
+                last_loss = loss;
+            }
+            obj["loss"] = loss;
         }
         switch(codec_type){
             case TrackAudio : {
@@ -1007,6 +1015,7 @@ void installWebApi() {
         getArgsValue(allArgs, "mp4_save_path", option.mp4_save_path);
         getArgsValue(allArgs, "mp4_max_second", option.mp4_max_second);
         getArgsValue(allArgs, "hls_save_path", option.hls_save_path);
+        getArgsValue(allArgs, "modify_stamp", option.modify_stamp);
 
         addStreamProxy(allArgs["vhost"],
                        allArgs["app"],
