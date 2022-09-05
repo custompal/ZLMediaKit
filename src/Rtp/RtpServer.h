@@ -23,10 +23,11 @@ namespace mediakit{
 /**
  * RTP服务器，支持UDP/TCP
  */
-class RtpServer {
+class RtpServer : public std::enable_shared_from_this<RtpServer> {
 public:
     using Ptr = std::shared_ptr<RtpServer>;
     using onRecv = std::function<void(const toolkit::Buffer::Ptr &buf)>;
+    enum TcpMode { NONE = 0, PASSIVE, ACTIVE };
 
     RtpServer();
     ~RtpServer();
@@ -35,16 +36,24 @@ public:
      * 开启服务器，可能抛异常
      * @param local_port 本地端口，0时为随机端口
      * @param stream_id 流id，置空则使用ssrc
-     * @param enable_tcp 是否启用tcp服务器
+     * @param tcp_mode tcp服务模式
      * @param local_ip 绑定的本地网卡ip
      * @param re_use_port 是否设置socket为re_use属性
      * @param ssrc 指定的ssrc
-     * @param rtp_process_name rtp处理器名称, 默认使用GB28181Process
+     * @param process_name rtp处理器名称, 默认使用GB28181Process
      */
-    virtual void start(
-        uint16_t local_port, const std::string &stream_id = "", bool enable_tcp = true,
+    void start(
+        uint16_t local_port, const std::string &stream_id = "", TcpMode tcp_mode = PASSIVE,
         const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0,
-        const std::string &rtp_process_name = "GB28181");
+        const std::string &process_name = "GB28181");
+
+    /**
+     * 连接到tcp服务(tcp主动模式)
+     * @param url 服务器地址
+     * @param port 服务器端口
+     * @param cb 连接服务器是否成功的回调
+     */
+    void connectToServer(const std::string &url, uint16_t port, const std::function<void(const toolkit::SockException &ex)> &cb);
 
     /**
      * 获取绑定的本地端口
@@ -56,48 +65,21 @@ public:
      */
     void setOnDetach(const std::function<void()> &cb);
 
+private:
+    // tcp主动模式连接服务器成功回调
+    void onConnect();
+
 protected:
     toolkit::Socket::Ptr _rtp_socket;
     toolkit::UdpServer::Ptr _udp_server;
     toolkit::TcpServer::Ptr _tcp_server;
     RtpProcess::Ptr _rtp_process;
-    std::function<void()> _on_clearup;
-};
+    std::function<void()> _on_cleanup;
 
-/**
- * RTP服务, TCP主动模式
- */
-class RtpTcpActiveServer
-    : public RtpServer
-    , public std::enable_shared_from_this<RtpTcpActiveServer> {
-public:
-    RtpTcpActiveServer();
-    ~RtpTcpActiveServer();
-
-    /**
-     * 开启服务器，可能抛异常
-     * @param local_port 本地端口，0时为随机端口
-     * @param stream_id 流id，置空则使用ssrc
-     * @param enable_tcp 是否启用tcp服务器
-     * @param local_ip 绑定的本地网卡ip
-     * @param re_use_port 是否设置socket为re_use属性
-     * @param ssrc 指定的ssrc
-     * @param rtp_process_name rtp处理器名称, 默认使用GB28181Process
-     */
-    virtual void start(
-        uint16_t local_port, const std::string &stream_id = "", bool enable_tcp = true,
-        const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0,
-        const std::string &rtp_process_name = "GB28181") override;
-
-    /**
-     * 连接到tcp服务
-     * @param srv_url 服务器地址
-     * @param srv_port 服务器端口
-     */
-    void connectToSrv(const std::string &srv_url, uint16_t srv_port);
-
-private:
-    mediakit::RtpSession::Ptr _rtp_session;
+    //用于tcp主动模式
+    TcpMode _tcp_mode = NONE;
+    //仅用于传递参数
+    toolkit::Server::Ptr _server;
 };
 
 }//namespace mediakit
