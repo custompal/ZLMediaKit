@@ -37,8 +37,8 @@ Socket::Ptr UDPServer::getSock(SocketHelper &helper, const char* local_ip, int i
             return nullptr;
         }
 
-        sock->setOnErr(bind(&UDPServer::onErr, this, key, placeholders::_1));
-        sock->setOnRead(bind(&UDPServer::onRecv, this, interleaved, placeholders::_1, placeholders::_2));
+        sock->setOnErr(std::bind(&UDPServer::onErr, this, key, placeholders::_1));
+        sock->setOnRead(std::bind(&UDPServer::onRecv, this, interleaved, placeholders::_1, placeholders::_2));
         _udp_sock_map[key] = sock;
         DebugL << local_ip << " " << sock->get_local_port() << " " << interleaved;
         return sock;
