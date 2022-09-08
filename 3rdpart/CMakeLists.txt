@@ -209,8 +209,10 @@ target_include_directories(zltoolkit
 #暴露tars日志依赖的头文件路径
 if(NOT USE_TARS_LOG_INDEX EQUAL -1)
   list(APPEND TARSLOG_INCLUDE_DIRECTORIES ${TARSCPP_ROOT}/util/include)
-  list(APPEND TARSLOG_INCLUDE_DIRECTORIES ${TARSCPP_ROOT}/util/src/epoll_windows)
   list(APPEND TARSLOG_INCLUDE_DIRECTORIES ${TARSCPP_ROOT}/servant)
+  if(WIN32)
+    list(APPEND TARSLOG_INCLUDE_DIRECTORIES ${TARSCPP_ROOT}/util/src/epoll_windows)
+  endif()
   target_include_directories(zltoolkit
     PUBLIC ${TARSLOG_INCLUDE_DIRECTORIES}
   )
