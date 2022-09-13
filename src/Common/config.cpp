@@ -323,8 +323,9 @@ const string kMediaTimeoutMS = "media_timeout_ms";
 const string kBeatIntervalMS = "beat_interval_ms";
 const string kBenchmarkMode = "benchmark_mode";
 const string kWaitTrackReady = "wait_track_ready";
-const string kTrackType = "track_type";
+const string kPlayTrack = "play_track";
 } // namespace Client
+
 } // namespace mediakit
 
 #ifdef ENABLE_MEM_DEBUG

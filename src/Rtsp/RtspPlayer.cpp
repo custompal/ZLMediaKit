@@ -200,23 +200,21 @@ void RtspPlayer::handleResDESCRIBE(const Parser& parser) {
     //解析sdp
     SdpParser sdpParser(parser.Content());
 
-    auto track_type = (*this)[Client::kTrackType];
-    if (track_type == "TrackVideo") {
-        auto track = sdpParser.getTrack(TrackVideo);
+    string sdp;
+    auto play_track = (TrackType)((int)(*this)[Client::kPlayTrack] - 1);
+    if (play_track != TrackInvalid) {
+        auto track = sdpParser.getTrack(play_track);
         _sdp_track.emplace_back(track);
-    }
-    else if (track_type == "TrackAudio") {
-        auto track = sdpParser.getTrack(TrackAudio);
-        _sdp_track.emplace_back(track);
-    }
-    else {
+        sdp = track->toString();
+    } else {
         _sdp_track = sdpParser.getAvailableTrack();
+        sdp = sdpParser.toString();
     }
 
     if (_sdp_track.empty()) {
         throw std::runtime_error("无有效的Sdp Track");
     }
-    if (!onCheckSDP(sdpParser.toString())) {
+    if (!onCheckSDP(sdp)) {
         throw std::runtime_error("onCheckSDP faied");
     }
     _rtcp_context.clear();
