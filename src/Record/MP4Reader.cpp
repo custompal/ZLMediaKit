@@ -236,12 +236,9 @@ bool MP4Reader::seekTo(uint32_t stamp_seek) {
     return false;
 }
 
-bool MP4Reader::close(MediaSource &sender, bool force) {
-    if (!_muxer || (!force && _muxer->totalReaderCount())) {
-        return false;
-    }
-    _timer.reset();
-    WarnL << sender.getUrl() << " " << force;
+bool MP4Reader::close(MediaSource &sender) {
+    _timer = nullptr;
+    WarnL << "close media: " << sender.getUrl();
     return true;
 }
 
