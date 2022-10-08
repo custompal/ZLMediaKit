@@ -110,11 +110,10 @@ void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const funct
                 }
                 InfoL << "accept connection from:" << sock->get_peer_ip() << ":" << sock->get_peer_port();
             });
-            auto local_port = tcp_listener->get_local_port();
-            InfoL << "start tcp passive server on:" << local_port;
+            InfoL << "start tcp passive server on:" << tcp_listener->get_local_port();
             if (!is_wait) {
                 // 随机端口马上返回端口，保证调用者知道端口
-                cb(local_port, SockException());
+                cb(tcp_listener->get_local_port(), SockException());
             }
         } catch (std::exception &ex) {
             cb(0, SockException(Err_other, ex.what()));
