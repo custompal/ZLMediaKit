@@ -145,7 +145,7 @@ void RtpServer::start(
                     process->setProcess(std::make_shared<H323Process>(process->getMediaInfo(), process.get()));
                 }
             }
-            bool check_ssrc = (0 == strcasecmp(process_name.c_str(), "GB28181"));
+            bool check_ssrc = (0 == strcasecmp(process_name.c_str(), "GB28181") && ssrc != 0);
             rtp_socket->setOnRead([rtp_socket, process, helper, check_ssrc,
                                    ssrc](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
                 if (check_ssrc) {
