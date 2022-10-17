@@ -18,7 +18,7 @@
 namespace mediakit{
 
 //rtp发送客户端，支持发送GB28181协议
-class RtpSender final : public MediaSinkInterface, public std::enable_shared_from_this<RtpSender>{
+class RtpSender /*final */: public MediaSinkInterface, public std::enable_shared_from_this<RtpSender>{
 public:
     typedef std::shared_ptr<RtpSender> Ptr;
 
