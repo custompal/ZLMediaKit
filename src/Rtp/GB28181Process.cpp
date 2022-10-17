@@ -59,10 +59,14 @@ GB28181Process::GB28181Process(const MediaInfo &media_info, MediaSinkInterface *
     _interface = sink;
 }
 
-GB28181Process::~GB28181Process() {}
-
 void GB28181Process::onRtpSorted(RtpPacket::Ptr rtp) {
     _rtp_decoder[rtp->getHeader()->pt]->inputRtp(rtp, false);
+}
+
+void GB28181Process::flush() {
+    if (_decoder) {
+        _decoder->flush();
+    }
 }
 
 bool GB28181Process::inputRtp(bool, const char *data, size_t data_len) {
@@ -180,8 +184,9 @@ void GB28181Process::onRtpDecode(const Frame::Ptr &frame) {
     if (_decoder) {
         if (drop_frame) {
             auto ref_frame = dynamic_pointer_cast<FrameImp>(frame);
-            if (ref_frame && ref_frame->_pre_frame_lost)
+            if (ref_frame && ref_frame->_pre_frame_lost) {
                 _drop_flag = true;
+            }
         }
         _decoder->input(reinterpret_cast<const uint8_t *>(frame->data()), frame->size());
     }
@@ -189,10 +194,12 @@ void GB28181Process::onRtpDecode(const Frame::Ptr &frame) {
 
 bool GB28181Process::inputFrame(const Frame::Ptr &frame) {
     do {
-        if (frame->getTrackType() != TrackVideo)
+        if (frame->getTrackType() != TrackVideo) {
             break;
-        if (!_drop_flag)
+        }
+        if (!_drop_flag) {
             break;
+        }
         if (frame->configFrame() || frame->keyFrame()) {
             _drop_flag = false;
             break;

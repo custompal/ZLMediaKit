@@ -121,8 +121,6 @@ H323Process::H323Process(const MediaInfo &media_info, MediaSinkInterface *sink) 
     _interface = sink;
 }
 
-H323Process::~H323Process() {}
-
 void H323Process::onRtpSorted(RtpPacket::Ptr rtp) {
     _rtp_decoder[rtp->getHeader()->pt]->inputRtp(rtp, false);
 }

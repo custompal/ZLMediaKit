@@ -28,7 +28,7 @@ public:
     using Ptr = std::shared_ptr<H323Process>;
 
     H323Process(const mediakit::MediaInfo &media_info, mediakit::MediaSinkInterface *sink);
-    ~H323Process() override;
+    ~H323Process() override = default;
 
     /**
      * 输入rtp
