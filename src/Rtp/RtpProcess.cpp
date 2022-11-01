@@ -49,10 +49,13 @@ RtpProcess::RtpProcess(const string &stream_id) {
     }
 }
 
-RtpProcess::~RtpProcess() {
+void RtpProcess::flush() {
     if (_process) {
         _process->flush();
     }
+}
+
+RtpProcess::~RtpProcess() {
     uint64_t duration = (_last_frame_time.createdTime() - _last_frame_time.elapsedTime()) / 1000;
     WarnP(this) << "RTP推流器("
                 << _media_info.shortUrl()
@@ -70,23 +73,14 @@ void RtpProcess::enableRtpCheck(bool enable) {
 }
 
 bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint64_t *dts_out) {
-    auto is_busy = _busy_flag.test_and_set();
-    if (is_busy) {
-        //其他线程正在执行本函数
-        WarnP(this) << "其他线程正在执行本函数";
-        return false;
-    }
-    //没有其他线程执行本函数
-    onceToken token(nullptr, [&]() {
-        //本函数执行完毕时，释放状态
-        _busy_flag.clear();
-    });
-
-    if (!_sock) {
-        //第一次运行本函数
+    if (_sock != sock) {
+        // 第一次运行本函数
+        bool first = !_sock;
         _sock = sock;
         _addr.reset(new sockaddr_storage(*((sockaddr_storage *)addr)));
-        emitOnPublish();
+        if (first) {
+            emitOnPublish();
+        }
     }
 
     _total_bytes += len;
@@ -211,8 +205,8 @@ void RtpProcess::onDetach() {
     }
 }
 
-void RtpProcess::setOnDetach(const function<void()> &cb) {
-    _on_detach = cb;
+void RtpProcess::setOnDetach(function<void()> cb) {
+    _on_detach = std::move(cb);
 }
 
 string RtpProcess::get_peer_ip() {
@@ -254,7 +248,7 @@ void RtpProcess::emitOnPublish() {
         if (!strong_self) {
             return;
         }
-        auto poller = strong_self->_sock ? strong_self->_sock->getPoller() : EventPollerPool::Instance().getPoller();
+        auto poller = strong_self->getOwnerPoller(MediaSource::NullMediaSource());
         poller->async([weak_self, err, option]() {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
@@ -301,7 +295,10 @@ std::shared_ptr<SockInfo> RtpProcess::getOriginSock(MediaSource &sender) const {
 }
 
 toolkit::EventPoller::Ptr RtpProcess::getOwnerPoller(MediaSource &sender) {
-    return _sock ? _sock->getPoller() : EventPollerPool::Instance().getPoller();
+    if (_sock) {
+        return _sock->getPoller();
+    }
+    throw std::runtime_error("RtpProcess::getOwnerPoller failed:" + _media_info._streamid);
 }
 
 float RtpProcess::getLossRate(MediaSource &sender, TrackType type) {

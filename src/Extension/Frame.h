@@ -280,29 +280,6 @@ public:
 };
 
 /**
- * 写帧接口转function，辅助类
- */
-class FrameWriterInterfaceHelper : public FrameWriterInterface {
-public:
-    typedef std::shared_ptr<FrameWriterInterfaceHelper> Ptr;
-    typedef std::function<bool(const Frame::Ptr &frame)> onWriteFrame;
-
-    /**
-     * inputFrame后触发onWriteFrame回调
-     */
-    FrameWriterInterfaceHelper(const onWriteFrame &cb) { _writeCallback = cb; }
-    virtual ~FrameWriterInterfaceHelper() = default;
-
-    /**
-     * 写入帧数据
-     */
-    bool inputFrame(const Frame::Ptr &frame) override { return _writeCallback(frame); }
-
-private:
-    onWriteFrame _writeCallback;
-};
-
-/**
  * 支持代理转发的帧环形缓存
  */
 class FrameDispatcher : public FrameWriterInterface {
@@ -314,10 +291,12 @@ public:
     /**
      * 添加代理
      */
-    void addDelegate(const FrameWriterInterface::Ptr &delegate) {
+    FrameWriterInterface* addDelegate(FrameWriterInterface::Ptr delegate) {
         std::lock_guard<std::mutex> lck(_mtx);
-        _delegates.emplace(delegate.get(), delegate);
+        return _delegates.emplace(delegate.get(), std::move(delegate)).first->second.get();
     }
+
+    FrameWriterInterface* addDelegate(std::function<bool(const Frame::Ptr &frame)> cb);
 
     /**
      * 删除代理

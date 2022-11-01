@@ -18,7 +18,7 @@
 
 namespace mediakit {
 
-class RtpProcess : public RtcpContextForRecv, public toolkit::SockInfo, public MediaSinkInterface, public MediaSourceEventInterceptor, public std::enable_shared_from_this<RtpProcess>{
+class RtpProcess final : public RtcpContextForRecv, public toolkit::SockInfo, public MediaSinkInterface, public MediaSourceEventInterceptor, public std::enable_shared_from_this<RtpProcess>{
 public:
     typedef std::shared_ptr<RtpProcess> Ptr;
     friend class RtpProcessHelper;
@@ -74,12 +74,17 @@ public:
     /**
      * 设置onDetach事件回调
      */
-    void setOnDetach(const std::function<void()> &cb);
+    void setOnDetach(std::function<void()> cb);
 
     /**
      * 设置onDetach事件回调,false检查RTP超时，true停止
      */
     void setStopCheckRtp(bool is_check=false);
+
+    /**
+     * flush输出缓存
+     */
+    void flush() override;
 
     /// SockInfo override
     std::string get_local_ip() override;
@@ -120,7 +125,6 @@ private:
     MultiMediaSourceMuxer::Ptr _muxer;
     std::atomic_bool _enable_rtp_check { true };
     std::atomic_bool _stop_rtp_check{false};
-    std::atomic_flag _busy_flag{false};
     toolkit::Ticker _last_check_alive;
     std::recursive_mutex _func_mtx;
     std::deque<std::function<void()> > _cached_func;

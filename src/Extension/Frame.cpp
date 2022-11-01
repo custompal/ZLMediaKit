@@ -210,5 +210,32 @@ void FrameMerger::flush() {
     }
     clear();
 }
+/**
+ * 写帧接口转function，辅助类
+ */
+class FrameWriterInterfaceHelper : public FrameWriterInterface {
+public:
+    using Ptr = std::shared_ptr<FrameWriterInterfaceHelper>;
+    using onWriteFrame = std::function<bool(const Frame::Ptr &frame)>;
+
+    /**
+     * inputFrame后触发onWriteFrame回调
+     */
+    FrameWriterInterfaceHelper(onWriteFrame cb) { _callback = std::move(cb); }
+
+    virtual ~FrameWriterInterfaceHelper() = default;
+
+    /**
+     * 写入帧数据
+     */
+    bool inputFrame(const Frame::Ptr &frame) override { return _callback(frame); }
+
+private:
+    onWriteFrame _callback;
+};
+
+FrameWriterInterface* FrameDispatcher::addDelegate(std::function<bool(const Frame::Ptr &frame)> cb) {
+    return addDelegate(std::make_shared<FrameWriterInterfaceHelper>(std::move(cb)));
+}
 
 }//namespace mediakit
