@@ -99,7 +99,7 @@ class MultiMediaSourceMuxer : public MediaSourceEventInterceptor, public MediaSi
 public:
     typedef std::shared_ptr<MultiMediaSourceMuxer> Ptr;
 
-    class Listener{
+    class Listener {
     public:
         Listener() = default;
         virtual ~Listener() = default;
@@ -196,6 +196,7 @@ public:
     const std::string& getVhost() const;
     const std::string& getApp() const;
     const std::string& getStreamId() const;
+    std::string shortUrl() const;
 
 protected:
     /////////////////////////////////MediaSink override/////////////////////////////////
@@ -228,7 +229,6 @@ protected:
     toolkit::Ticker _last_check;
     Stamp _stamp[2];
     std::weak_ptr<Listener> _track_listener;
-    std::function<std::string()> _get_origin_url;
 #if defined(ENABLE_RTPPROXY)
     std::unordered_map<std::string, RtpSender::Ptr> _rtp_sender;
 #endif //ENABLE_RTPPROXY
