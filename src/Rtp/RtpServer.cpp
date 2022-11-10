@@ -45,6 +45,12 @@ public:
             RtpSelector::Instance().delProcess(_stream_id, _process.get());
         }
     }
+    void setRtpServerInfo(uint16_t local_port,RtpServer::TcpMode mode,bool re_use_port,uint32_t ssrc){
+        _local_port = local_port;
+        _tcp_mode = mode;
+        _re_use_port = re_use_port;
+        _ssrc = ssrc;
+    }
 
     void setOnDetach(function<void()> cb) {
         if (_process) {
@@ -64,8 +70,7 @@ public:
             } else {
                 _process->setProcess(std::make_shared<H323Process>(_process->getMediaInfo(), _process.get()));
             }
-            _delay_task->cancel();
-            _delay_task = nullptr;
+            cancelDelayTask();
         }
         _process->inputRtp(true, sock, buf->data(), buf->size(), addr);
 
@@ -100,9 +105,19 @@ public:
                 if (!process && strong_self->_on_detach) {
                     strong_self->_on_detach();
                 }
+             if(!process){ // process 未创建，触发rtp server 超时事件
+                NoticeCenter::Instance().emitEvent(Broadcast::KBroadcastRtpServerTimeout,strong_self->_local_port,strong_self->_stream_id,(int)strong_self->_tcp_mode,strong_self->_re_use_port,strong_self->_ssrc);
+             }
             }
             return 0;
         });
+    }
+
+    void cancelDelayTask(){
+        if(_delay_task){
+            _delay_task->cancel();
+            _delay_task = nullptr;
+        }
     }
 
 private:
@@ -127,6 +142,12 @@ private:
     }
 
 private:
+    uint16_t _local_port = 0;
+    RtpServer::TcpMode _tcp_mode = RtpServer::NONE;
+    bool _re_use_port = false;
+    uint32_t _ssrc = 0;
+
+
     Ticker _ticker;
     Socket::Ptr _rtcp_sock;
     RtpProcess::Ptr _process;
@@ -181,6 +202,7 @@ void RtpServer::start(
         //指定了流id，那么一个端口一个流(不管是否包含多个ssrc的多个流，绑定rtp源后，会筛选掉ip端口不匹配的流)
         helper = std::make_shared<RtcpHelper>(std::move(rtcp_socket), stream_id, process_name);
         helper->startRtcp();
+        helper->setRtpServerInfo(local_port, tcp_mode, re_use_port, ssrc);
         bool check_ssrc = (0 == strcasecmp(process_name.c_str(), "GB28181") && ssrc != 0);
         rtp_socket->setOnRead([rtp_socket, helper, check_ssrc, ssrc](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
             RtpHeader *header = (RtpHeader *)buf->data();
