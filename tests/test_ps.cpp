@@ -1,5 +1,9 @@
-﻿#include "mpeg-ts-proto.h"
+﻿#if defined(ENABLE_RTPPROXY) || defined(ENABLE_HLS)
+#include "mpeg-ts.h"
+#endif
+#if defined(ENABLE_RTPPROXY)
 #include "Rtp/PSDecoder.h"
+#endif
 
 using namespace std;
 using namespace toolkit;
