@@ -15,9 +15,11 @@
 #include "Extension/G711.h"
 #include "Extension/H264Rtp.h"
 #include "Extension/H265.h"
+#include "Extension/AAC.h"
 #include "Extension/Opus.h"
 #include "Http/HttpTSPlayer.h"
 #include "Util/File.h"
+#include "Common/config.h"
 
 using namespace std;
 using namespace toolkit;

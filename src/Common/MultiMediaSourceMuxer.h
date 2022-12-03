@@ -12,8 +12,10 @@
 #define ZLMEDIAKIT_MULTIMEDIASOURCEMUXER_H
 
 #include "Common/Stamp.h"
-#include "Rtp/RtpSender.h"
+#include "Common/MediaSource.h"
+#include "Common/MediaSink.h"
 #include "Record/Recorder.h"
+#include "Rtp/RtpSender.h"
 #include "Record/HlsRecorder.h"
 #include "Record/HlsMediaSource.h"
 #include "Rtsp/RtspMediaSourceMuxer.h"
@@ -25,7 +27,7 @@ namespace mediakit {
 
 class MultiMediaSourceMuxer : public MediaSourceEventInterceptor, public MediaSink, public std::enable_shared_from_this<MultiMediaSourceMuxer>{
 public:
-    typedef std::shared_ptr<MultiMediaSourceMuxer> Ptr;
+    using Ptr = std::shared_ptr<MultiMediaSourceMuxer>;
 
     class Listener {
     public:

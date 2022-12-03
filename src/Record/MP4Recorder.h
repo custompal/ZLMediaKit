@@ -13,17 +13,15 @@
 
 #include <mutex>
 #include <memory>
-#include "Player/PlayerBase.h"
-#include "Util/util.h"
-#include "Util/logger.h"
-#include "Util/TimeTicker.h"
-#include "Util/TimeTicker.h"
 #include "Common/MediaSink.h"
+#include "Record/Recorder.h"
 #include "MP4Muxer.h"
 
 namespace mediakit {
 
 #ifdef ENABLE_MP4
+class MP4Muxer;
+
 class MP4Recorder final : public MediaSinkInterface {
 public:
     using Ptr = std::shared_ptr<MP4Recorder>;

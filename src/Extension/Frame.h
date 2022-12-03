@@ -11,14 +11,14 @@
 #ifndef ZLMEDIAKIT_FRAME_H
 #define ZLMEDIAKIT_FRAME_H
 
+#include <map>
 #include <mutex>
 #include <functional>
-#include "Util/RingBuffer.h"
-#include "Network/Socket.h"
-#include "Common/Stamp.h"
+#include "Util/List.h"
+#include "Network/Buffer.h"
 
 namespace mediakit {
-
+class Stamp;
 typedef enum {
     TrackInvalid = -1,
     TrackVideo = 0,
@@ -80,7 +80,7 @@ TrackType getTrackType(CodecId codecId);
  */
 class CodecInfo {
 public:
-    typedef std::shared_ptr<CodecInfo> Ptr;
+    using Ptr = std::shared_ptr<CodecInfo>;
 
     CodecInfo() = default;
     virtual ~CodecInfo() = default;
@@ -227,7 +227,7 @@ protected:
 template <typename Parent>
 class FrameInternal : public Parent {
 public:
-    typedef std::shared_ptr<FrameInternal> Ptr;
+    using Ptr = std::shared_ptr<FrameInternal>;
     FrameInternal(const Frame::Ptr &parent_frame, char *ptr, size_t size, size_t prefix_size)
         : Parent(ptr, size, parent_frame->dts(), parent_frame->pts(), prefix_size) {
         _parent_frame = parent_frame;
@@ -247,7 +247,7 @@ private:
 template <typename Parent>
 class FrameTSInternal : public Parent {
 public:
-    typedef std::shared_ptr<FrameTSInternal> Ptr;
+    using Ptr = std::shared_ptr<FrameTSInternal>;
     FrameTSInternal(
         const Frame::Ptr &parent_frame, char *ptr, size_t size, size_t prefix_size, uint64_t dts, uint64_t pts)
         : Parent(ptr, size, dts, pts, prefix_size) {
@@ -264,7 +264,7 @@ private:
  */
 class FrameWriterInterface {
 public:
-    typedef std::shared_ptr<FrameWriterInterface> Ptr;
+    using Ptr = std::shared_ptr<FrameWriterInterface>;
     FrameWriterInterface() = default;
     virtual ~FrameWriterInterface() = default;
 
@@ -343,7 +343,7 @@ private:
  */
 class FrameFromPtr : public Frame {
 public:
-    typedef std::shared_ptr<FrameFromPtr> Ptr;
+    using Ptr = std::shared_ptr<FrameFromPtr>;
 
     FrameFromPtr(
         CodecId codec_id, char *ptr, size_t size, uint64_t dts, uint64_t pts = 0, size_t prefix_size = 0,
@@ -396,7 +396,7 @@ protected:
  */
 class FrameCacheAble : public FrameFromPtr {
 public:
-    typedef std::shared_ptr<FrameCacheAble> Ptr;
+    using Ptr = std::shared_ptr<FrameCacheAble>;
 
     FrameCacheAble(const Frame::Ptr &frame, bool force_key_frame = false) {
         if (frame->cacheAble()) {
@@ -442,11 +442,7 @@ private:
 class FrameStamp : public Frame {
 public:
     using Ptr = std::shared_ptr<FrameStamp>;
-    FrameStamp(Frame::Ptr frame, Stamp &stamp, bool modify_stamp) {
-        _frame = std::move(frame);
-        //覆盖时间戳
-        stamp.revise(_frame->dts(), _frame->pts(), _dts, _pts, modify_stamp);
-    }
+    FrameStamp(Frame::Ptr frame, Stamp &stamp, bool modify_stamp);
     ~FrameStamp() override {}
 
     uint64_t dts() const override { return (uint64_t)_dts; }

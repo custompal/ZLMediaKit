@@ -13,7 +13,6 @@
 
 #include "Rtmp/RtmpCodec.h"
 #include "Extension/Track.h"
-#include "Util/ResourcePool.h"
 #include "Extension/H265.h"
 
 namespace mediakit{
@@ -23,7 +22,7 @@ namespace mediakit{
  */
 class H265RtmpDecoder : public RtmpCodec {
 public:
-    typedef std::shared_ptr<H265RtmpDecoder> Ptr;
+    using Ptr = std::shared_ptr<H265RtmpDecoder>;
 
     H265RtmpDecoder();
     ~H265RtmpDecoder() {}
@@ -51,7 +50,7 @@ protected:
  */
 class H265RtmpEncoder : public H265RtmpDecoder{
 public:
-    typedef std::shared_ptr<H265RtmpEncoder> Ptr;
+    using Ptr = std::shared_ptr<H265RtmpEncoder>;
 
     /**
      * 构造函数，track可以为空，此时则在inputFrame时输入sps pps

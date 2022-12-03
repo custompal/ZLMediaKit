@@ -19,6 +19,7 @@
 #include "HttpSession.h"
 #include "Record/HlsMediaSource.h"
 #include "Common/Parser.h"
+#include "Common/config.h"
 #include "strCoding.h"
 
 using namespace std;
@@ -197,7 +198,7 @@ static bool emitHlsPlayed(const Parser &parser, const MediaInfo &media_info, con
 
 class SockInfoImp : public SockInfo{
 public:
-    typedef std::shared_ptr<SockInfoImp> Ptr;
+    using Ptr = std::shared_ptr<SockInfoImp>;
     SockInfoImp() = default;
     ~SockInfoImp() override = default;
 

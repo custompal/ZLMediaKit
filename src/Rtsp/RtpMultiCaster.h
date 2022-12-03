@@ -15,9 +15,7 @@
 #include <memory>
 #include <unordered_set>
 #include <unordered_map>
-#include "Common/config.h"
 #include "RtspMediaSource.h"
-#include "Util/mini.h"
 #include "Network/Socket.h"
 
 namespace mediakit{
@@ -43,8 +41,9 @@ private:
 
 class RtpMultiCaster {
 public:
-    typedef std::shared_ptr<RtpMultiCaster> Ptr;
-    typedef std::function<void()> onDetach;
+    using Ptr = std::shared_ptr<RtpMultiCaster>;
+    using onDetach = std::function<void()>;
+
     ~RtpMultiCaster();
 
     static Ptr get(toolkit::SocketHelper &helper, const std::string &local_ip, const std::string &vhost, const std::string &app, const std::string &stream);

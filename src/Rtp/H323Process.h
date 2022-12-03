@@ -18,6 +18,7 @@
 #include "Rtsp/RtpCodec.h"
 #include "Rtsp/RtpReceiver.h"
 #include "Http/HttpRequestSplitter.h"
+#include "Common/MediaSource.h"
 
 namespace mediakit{
 

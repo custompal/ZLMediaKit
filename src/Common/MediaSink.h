@@ -44,7 +44,7 @@ public:
 
 class MediaSinkInterface : public FrameWriterInterface, public TrackListener {
 public:
-    typedef std::shared_ptr<MediaSinkInterface> Ptr;
+    using Ptr = std::shared_ptr<MediaSinkInterface>;
 
     MediaSinkInterface() = default;
     ~MediaSinkInterface() override = default;
@@ -60,7 +60,7 @@ public:
  */
 class MuteAudioMaker : public FrameDispatcher {
 public:
-    typedef std::shared_ptr<MuteAudioMaker> Ptr;
+    using Ptr = std::shared_ptr<MuteAudioMaker>;
     MuteAudioMaker() = default;
     ~MuteAudioMaker() override = default;
     bool inputFrame(const Frame::Ptr &frame) override;
@@ -75,7 +75,7 @@ private:
  */
 class MediaSink : public MediaSinkInterface, public TrackSource{
 public:
-    typedef std::shared_ptr<MediaSink> Ptr;
+    using Ptr = std::shared_ptr<MediaSink>;
     MediaSink() = default;
     ~MediaSink() override = default;
 
@@ -172,6 +172,44 @@ private:
     MuteAudioMaker::Ptr _mute_audio_maker;
 };
 
+
+class MediaSinkDelegate : public MediaSink {
+public:
+    MediaSinkDelegate() = default;
+    ~MediaSinkDelegate() override = default;
+
+    /**
+     * 设置track监听器
+     */
+    void setTrackListener(TrackListener *listener);
+
+protected:
+    void resetTracks() override;
+    bool onTrackReady(const Track::Ptr & track) override;
+    void onAllTrackReady() override;
+
+private:
+    TrackListener *_listener = nullptr;
+};
+
+class Demuxer : protected TrackListener, public TrackSource {
+public:
+    Demuxer() = default;
+    ~Demuxer() override = default;
+
+    void setTrackListener(TrackListener *listener, bool wait_track_ready = false);
+    std::vector<Track::Ptr> getTracks(bool trackReady = true) const override;
+
+protected:
+    bool addTrack(const Track::Ptr &track) override;
+    void addTrackCompleted() override;
+    void resetTracks() override;
+
+private:
+    MediaSink::Ptr _sink;
+    TrackListener *_listener = nullptr;
+    std::vector<Track::Ptr> _origin_track;
+};
 
 }//namespace mediakit
 

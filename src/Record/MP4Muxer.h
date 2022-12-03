@@ -14,10 +14,6 @@
 #ifdef ENABLE_MP4
 
 #include "Common/MediaSink.h"
-#include "Extension/AAC.h"
-#include "Extension/G711.h"
-#include "Extension/H264.h"
-#include "Extension/H265.h"
 #include "Common/Stamp.h"
 #include "MP4.h"
 
@@ -88,7 +84,7 @@ private:
 
 class MP4Muxer : public MP4MuxerInterface{
 public:
-    typedef std::shared_ptr<MP4Muxer> Ptr;
+    using Ptr = std::shared_ptr<MP4Muxer>;
 
     MP4Muxer() = default;
     ~MP4Muxer() override;
