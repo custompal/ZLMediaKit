@@ -205,12 +205,18 @@ void RtpServer::start(
         helper->startRtcp();
         helper->setRtpServerInfo(local_port, tcp_mode, re_use_port, ssrc);
         bool check_ssrc = (0 == strcasecmp(process_name.c_str(), "GB28181") && ssrc != 0);
-        rtp_socket->setOnRead([rtp_socket, helper, check_ssrc, ssrc](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) {
+        bool bind_peer_addr = false;
+        rtp_socket->setOnRead([rtp_socket, helper, ssrc, check_ssrc, bind_peer_addr](const Buffer::Ptr &buf, struct sockaddr *addr, int addr_len) mutable {
             RtpHeader *header = (RtpHeader *)buf->data();
             auto rtp_ssrc = ntohl(header->ssrc);
             if (check_ssrc && ssrc && rtp_ssrc != ssrc) {
                 WarnL << "ssrc不匹配,rtp已丢弃:" << rtp_ssrc << " != " << ssrc;
             } else {
+                if (!bind_peer_addr) {
+                    //绑定对方ip+端口，防止多个设备或一个设备多次推流从而日志报ssrc不匹配问题
+                    bind_peer_addr = true;
+                    rtp_socket->bindPeerAddr(addr, addr_len);
+                }
                 helper->onRecvRtp(rtp_socket, buf, addr);
             }
         });
