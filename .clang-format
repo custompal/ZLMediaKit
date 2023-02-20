@@ -15,7 +15,7 @@ BasedOnStyle: WebKit
 # public/protected/private 不缩进
 AccessModifierOffset: -4
 # 参数过长时统一换行
-AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: Align
 # clang-format >= 13 required, map 之类的内部列对齐
 # AlignArrayOfStructures: Left
 # 换行符统一在 ColumnLimit 最右侧
@@ -26,6 +26,10 @@ AllowShortBlocksOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 # 模板声明换行
 AlwaysBreakTemplateDeclarations: Yes
+# 函数调用时的参数(Arguments)是否放置于一行, false不放置, true强制一个调用参数一行, 建议false
+BinPackArguments: true
+# 函数定义参数(Parameters)是否放置于一行, 同BinPackArguments
+BinPackParameters: true
 # 左开括号不换行
 BreakBeforeBraces: Custom
 BraceWrapping:
@@ -51,7 +55,7 @@ BreakConstructorInitializers: BeforeComma
 # 继承过长需要换行时也在 `,` 前
 BreakInheritanceList: BeforeComma
 # 列宽 120
-ColumnLimit: 120
+ColumnLimit: 0
 # c++11 括号内起始/结束无空格, false 会加上
 Cpp11BracedListStyle: false
 # 命名空间后的注释会修正为: // namespace_name
