@@ -32,29 +32,6 @@ RtpSender::~RtpSender() {
 }
 
 void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const function<void(uint16_t local_port, const SockException &ex)> &cb){
-    if (!_poller->isCurrentThread()) {
-        auto poller = EventPoller::getCurrentPoller();
-        auto tmp_cb = [poller, cb](uint16_t local_port, const SockException &ex) {
-            poller->async_first([cb, local_port, ex]() { cb(local_port, ex); });
-        };
-        const_cast<MediaSourceEvent::SendRtpArgs &>(args).initiated_poller = poller;
-        weak_ptr<RtpSender> weak_self = shared_from_this();
-        _poller->async_first([args, weak_self, tmp_cb]() {
-            auto strong_self = weak_self.lock();
-            if (!strong_self) {
-                tmp_cb(0, SockException(Err_other, StrPrinter << "RtpSender对象已销毁"));
-                return;
-            }
-            strong_self->startSend(args, tmp_cb);
-        });
-        return;
-    }
-    if (!args.initiated_poller) {
-        const_cast<MediaSourceEvent::SendRtpArgs &>(args).initiated_poller = _poller;
-    }
-    // TODO
-    const_cast<MediaSourceEvent::SendRtpArgs &>(args).rtp_sender = nullptr;
-
     _args = args;
     if (!_interface) {
         //重连时不重新创建对象
@@ -106,7 +83,6 @@ void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const funct
                 InfoL << "accept connection from:" << sock->get_peer_ip() << ":" << sock->get_peer_port();
             });
             InfoL << "start tcp passive server on:" << tcp_listener->get_local_port();
-
             //马上返回端口，保证调用者知道端口
             cb(tcp_listener->get_local_port(), SockException());
         } catch (std::exception &ex) {
@@ -234,6 +210,8 @@ void RtpSender::onConnect(){
     if (!_args.recv_stream_id.empty()) {
         mINI ini;
         ini[RtpSession::kStreamID] = _args.recv_stream_id;
+        ini[RtpSession::kProcessName] = _args.process_name;
+        ini[RtpSession::kRtpCheck] = _args.rtp_check;
         _rtp_session = std::make_shared<RtpSession>(_socket_rtp);
         _rtp_session->setParams(ini);
 
@@ -290,7 +268,7 @@ bool RtpSender::inputRtpPayload(const Frame::Ptr &frame) {
 }
 
 void RtpSender::onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check) {
-    if (!_socket_rtcp || !_rtcp_context) {
+    if (!_socket_rtcp) {
         return;
     }
     auto rtp = static_pointer_cast<RtpPacket>(buf);
@@ -321,26 +299,14 @@ void RtpSender::onClose(const SockException &ex) {
     auto cb = _on_close;
     if (cb) {
         //在下次循环时触发onClose，原因是防止遍历map时删除元素
-        _args.initiated_poller->async([cb, ex]() { cb(ex); }, false);
+        _poller->async([cb, ex]() { cb(ex); }, false);
     }
 }
 
-//此函数可能在其他线程执行
+//此函数在其他线程执行
 void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
     if (!_is_connect) {
         //连接成功后才能发送数据
-        return;
-    }
-
-    if (!_poller->isCurrentThread()) {
-        weak_ptr<RtpSender> weak_self = shared_from_this();
-        _poller->async([rtp_list, weak_self]() {
-            auto strong_self = weak_self.lock();
-            if (!strong_self) {
-                return;
-            }
-            strong_self->onFlushRtpList(rtp_list);
-        });
         return;
     }
 

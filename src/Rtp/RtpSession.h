@@ -25,6 +25,8 @@ public:
     static const std::string kStreamID;
     static const std::string kSSRC;
     static const std::string kOnlyAudio;
+    static const std::string kProcessName;
+    static const std::string kRtpCheck;
 
     RtpSession(const toolkit::Socket::Ptr &sock);
     ~RtpSession() override;
@@ -50,6 +52,8 @@ private:
     uint32_t _ssrc = 0;
     toolkit::Ticker _ticker;
     std::string _stream_id;
+    std::string _process_name;
+    bool _rtp_check = false;
     struct sockaddr_storage _addr;
     RtpProcess::Ptr _process;
 };

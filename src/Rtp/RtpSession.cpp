@@ -9,6 +9,8 @@
  */
 
 #if defined(ENABLE_RTPPROXY)
+#include "GB28181Process.h"
+#include "H323Process.h"
 #include "RtpSession.h"
 #include "RtpSelector.h"
 #include "Network/TcpServer.h"
@@ -23,6 +25,8 @@ namespace mediakit{
 const string RtpSession::kStreamID = "stream_id";
 const string RtpSession::kSSRC = "ssrc";
 const string RtpSession::kOnlyAudio = "only_audio";
+const string RtpSession::kProcessName = "process_name";
+const string RtpSession::kRtpCheck = "rtp_check";
 
 void RtpSession::attachServer(const Server &server) {
     setParams(const_cast<Server &>(server));
@@ -32,6 +36,8 @@ void RtpSession::setParams(mINI &ini) {
     _stream_id = ini[kStreamID];
     _ssrc = ini[kSSRC];
     _only_audio = ini[kOnlyAudio];
+    _process_name = ini[kProcessName];
+    _rtp_check = ini[kRtpCheck];
 }
 
 RtpSession::RtpSession(const Socket::Ptr &sock) : Session(sock) {
@@ -105,6 +111,14 @@ void RtpSession::onRtpPacket(const char *data, size_t len) {
         _process = RtpSelector::Instance().getProcess(_stream_id, true);
         _process->setOnlyAudio(_only_audio);
         _process->setDelegate(dynamic_pointer_cast<RtpSession>(shared_from_this()));
+        assert(!_process->getProcess());
+        if (0 == strcasecmp(_process_name.c_str(), "GB28181")) {
+            _process->setProcess(std::make_shared<mediakit::GB28181Process>(_process->getMediaInfo(), _process.get()));
+        }
+        else {
+            _process->setProcess(std::make_shared<mediakit::H323Process>(_process->getMediaInfo(), _process.get()));
+        }
+        _process->enableRtpCheck(_rtp_check);
     }
     try {
         uint32_t rtp_ssrc = 0;

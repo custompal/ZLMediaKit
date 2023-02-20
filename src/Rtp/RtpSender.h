@@ -22,7 +22,7 @@ namespace mediakit{
 class RtpSession;
 
 //rtp发送客户端，支持发送GB28181协议
-class RtpSender /*final */: public MediaSinkInterface, public std::enable_shared_from_this<RtpSender>{
+class RtpSender final : public MediaSinkInterface, public std::enable_shared_from_this<RtpSender>{
 public:
     using Ptr = std::shared_ptr<RtpSender>;
 
@@ -34,7 +34,7 @@ public:
      * @param args 发送参数
      * @param cb 连接目标端口是否成功的回调
      */
-    virtual void startSend(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
+    void startSend(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
 
     /**
      * 输入帧数据
@@ -82,7 +82,7 @@ private:
     void onSendRtpUdp(const toolkit::Buffer::Ptr &buf, bool check);
     void onClose(const toolkit::SockException &ex);
 
-protected:
+private:
     bool _is_connect = false;
     MediaSourceEvent::SendRtpArgs _args;
     toolkit::Socket::Ptr _socket_rtp;

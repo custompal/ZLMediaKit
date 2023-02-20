@@ -118,10 +118,6 @@ public:
         std::vector<Track::Ptr> codec_tracks;
         // RtpSender对象标识
         std::string send_key;
-        // 发起调用的poller
-        toolkit::EventPoller::Ptr initiated_poller;
-        // TODO
-        std::shared_ptr<RtpSender> rtp_sender;
 
         //udp发送时，是否开启rr rtcp接收超时判断
         bool udp_rtcp_timeout = false;
@@ -134,6 +130,8 @@ public:
 
         //发送rtp同时接收，一般用于双向语言对讲, 如果不为空，说明开启接收
         std::string recv_stream_id;
+        std::string process_name;
+        bool rtp_check = true;
     };
 
     // 开始发送ps-rtp
