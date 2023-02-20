@@ -201,6 +201,10 @@ void RtpProcess::setStopCheckRtp(bool is_check){
     }
 }
 
+void RtpProcess::setOnlyAudio(bool only_audio){
+    _only_audio = only_audio;
+}
+
 void RtpProcess::onDetach() {
     if (_on_detach) {
         _on_detach();
@@ -266,6 +270,9 @@ void RtpProcess::emitOnPublish() {
                     strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
                         strong_self->_media_info._vhost, strong_self->_media_info._app,
                         strong_self->_media_info._streamid, 0.0f, option);
+                }
+                if (strong_self->_only_audio) {
+                    strong_self->_muxer->setOnlyAudio();
                 }
                 strong_self->_muxer->setMediaListener(strong_self);
                 strong_self->doCachedFunc();

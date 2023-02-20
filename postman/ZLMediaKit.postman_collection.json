@@ -1404,6 +1404,12 @@
 							"value": "0",
 							"description": "是否指定收流的rtp ssrc, 十进制数字，不指定或指定0时则不过滤rtp，非必选参数",
 							"disabled": true
+						},
+						{
+							"key": "only_audio",
+							"value": "1",
+							"description": "是否为单音频track，用于语音对讲",
+							"disabled": true
 						}
 					]
 				}
@@ -1748,6 +1754,12 @@
 							"key": "recv_stream_id",
 							"value": "",
 							"description": "发送rtp同时接收，一般用于双向语言对讲, 如果不为空，说明开启接收，值为接收流的id",
+							"disabled": true
+						},
+						{
+							"key": "close_delay_ms",
+							"value": "5000",
+							"description": "等待tcp连接超时时间，单位毫秒，默认5000毫秒",
 							"disabled": true
 						}
 					]

@@ -84,7 +84,8 @@ void RtpSender::startSend(const MediaSourceEvent::SendRtpArgs &args, const funct
                 makeSockPair(pr, "::", false, false);
             }
             // tcp服务器默认开启5秒
-            auto delay_task = _poller->doDelayTask(_args.tcp_passive_close_delay_ms, [weak_self, tcp_listener, cb]() mutable {
+            auto delay = _args.tcp_passive_close_delay_ms ? _args.tcp_passive_close_delay_ms : 5000;
+            auto delay_task = _poller->doDelayTask(delay, [weak_self, tcp_listener, cb]() mutable {
                 tcp_listener = nullptr;
                 auto strong_self = weak_self.lock();
                 if (!strong_self) {

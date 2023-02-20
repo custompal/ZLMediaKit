@@ -391,7 +391,7 @@ Value makeMediaSourceJson(MediaSource &media){
 }
 
 #if defined(ENABLE_RTPPROXY)
-uint16_t openRtpServer(uint16_t local_port, const string &stream_id, int tcp_mode, const string &local_ip, bool re_use_port, uint32_t ssrc) {
+uint16_t openRtpServer(uint16_t local_port, const string &stream_id, int tcp_mode, const string &local_ip, bool re_use_port, uint32_t ssrc, bool only_audio) {
     lock_guard<recursive_mutex> lck(s_rtpServerMapMtx);
     if (s_rtpServerMap.find(stream_id) != s_rtpServerMap.end()) {
         //为了防止RtpProcess所有权限混乱的问题，不允许重复添加相同的stream_id
@@ -399,7 +399,7 @@ uint16_t openRtpServer(uint16_t local_port, const string &stream_id, int tcp_mod
     }
 
     RtpServer::Ptr server = std::make_shared<RtpServer>();
-    server->start(local_port, stream_id, (RtpServer::TcpMode)tcp_mode, local_ip.c_str(), re_use_port, ssrc);
+    server->start(local_port, stream_id, (RtpServer::TcpMode)tcp_mode, local_ip.c_str(), re_use_port, ssrc, only_audio);
     server->setOnDetach([stream_id]() {
         //设置rtp超时移除事件
         lock_guard<recursive_mutex> lck(s_rtpServerMapMtx);
@@ -1140,7 +1140,7 @@ void installWebApi() {
             tcp_mode = 1;
         }
         auto port = openRtpServer(allArgs["port"], stream_id, tcp_mode, "::", allArgs["re_use_port"].as<bool>(),
-                                  allArgs["ssrc"].as<uint32_t>());
+                                  allArgs["ssrc"].as<uint32_t>(), allArgs["only_audio"].as<bool>());
         if (port == 0) {
             throw InvalidArgsException("该stream_id已存在");
         }
@@ -1238,6 +1238,8 @@ void installWebApi() {
         args.use_ps = allArgs["use_ps"].empty() ? true : allArgs["use_ps"].as<bool>();
         args.only_audio = allArgs["only_audio"].as<bool>();
         args.recv_stream_id = allArgs["recv_stream_id"];
+        //tcp被动服务器等待链接超时时间
+        args.tcp_passive_close_delay_ms = allArgs["close_delay_ms"];
         TraceL << "startSendRtpPassive, pt " << int(args.pt) << " ps " << args.use_ps << " audio " <<  args.only_audio;
 
         src->getOwnerPoller()->async([=]() mutable {

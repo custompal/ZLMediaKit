@@ -42,12 +42,12 @@ public:
      * @param local_ip 绑定的本地网卡ip
      * @param re_use_port 是否设置socket为re_use属性
      * @param ssrc 指定的ssrc
+     * @param only_audio 是否只启用音频
      * @param process_name rtp处理器名称, 默认使用GB28181Process
      */
-    void start(
-        uint16_t local_port, const std::string &stream_id = "", TcpMode tcp_mode = PASSIVE,
-        const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0,
-        const std::string &process_name = "GB28181");
+    void start(uint16_t local_port, const std::string &stream_id = "", TcpMode tcp_mode = PASSIVE,
+               const char *local_ip = "::", bool re_use_port = true, uint32_t ssrc = 0, bool only_audio = false,
+               const std::string &process_name = "GB28181");
 
     /**
      * 连接到tcp服务(tcp主动模式)
@@ -78,6 +78,7 @@ protected:
     std::shared_ptr<RtcpHelper> _rtcp_helper;
     std::function<void()> _on_cleanup;
 
+    bool _only_audio = false;
     //用于tcp主动模式
     TcpMode _tcp_mode = NONE;
 };
