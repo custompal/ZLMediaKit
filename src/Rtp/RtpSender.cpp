@@ -369,26 +369,15 @@ void RtpSender::onFlushRtpList(shared_ptr<List<Buffer::Ptr> > rtp_list) {
 void RtpSender::onErr(const SockException &ex, bool is_connect) {
     _is_connect = false;
 
-    if (_args.passive) {
-        WarnL << "tcp passive connection lost: " << ex.what();
-        //tcp被动模式，如果对方断开连接，应该停止发送rtp
+    if (_args.passive || !is_connect || !_args.reconn_time) {
+        WarnL << "send rtp connection lost: " << ex;
         onClose(ex);
         return;
     }
-    if (!is_connect) {
-        WarnL << "send rtp connection lost: " << ex.what();
-        onClose(ex);
-        return;
-    }
-    if (!_args.reconn_time) {
-        WarnL << "停止发送 rtp:" << _args.dst_url << ":" << _args.dst_port << ", 原因为:" << ex.what();
-        onClose(ex);
-        return;
-    }
+
     _retry_count++;
     if (_retry_count > _args.reconn_count) {
-        WarnL << "重试了" << _retry_count << "次，停止发送 rtp : " << _args.dst_url << " : " << _args.dst_port
-              << ", 原因为: " << ex.what();
+        WarnL << "重试了" << _retry_count << "次，停止发送 rtp : " << _args.dst_url << " : " << _args.dst_port << ", 原因为: " << ex.what();
         onClose(ex);
         return;
     }
@@ -405,7 +394,7 @@ void RtpSender::onErr(const SockException &ex, bool is_connect) {
             strong_self->startSend(strong_self->_args, [weak_self](uint16_t local_port, const SockException &ex) {
                 auto strong_self = weak_self.lock();
                 if (strong_self && ex) {
-                    //连接失败且本对象未销毁，那么重试连接
+                    // 连接失败且本对象未销毁，那么重试连接
                     strong_self->onErr(ex, true);
                 }
             });

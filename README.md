@@ -1,5 +1,7 @@
 ![logo](https://raw.githubusercontent.com/ZLMediaKit/ZLMediaKit/master/www/logo.png)
 
+简体中文 | [English](./README_en.md)
+
 # 一个基于C++11的高性能运营级流媒体服务框架
 
 [![](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/ZLMediaKit/ZLMediaKit/blob/master/LICENSE)
@@ -99,6 +101,7 @@
   - 支持es/ps/ts/ehome rtp推流
   - 支持es/ps rtp转推
   - 支持GB28181主动拉流模式
+  - 支持双向语音对讲
 
 - MP4点播与录制
   - 支持录制为FLV/HLS/MP4
@@ -119,6 +122,7 @@
   - 支持datachannel
   - 支持webrtc over tcp模式
   - 优秀的nack、jitter buffer算法, 抗丢包能力卓越
+  - 支持whip/whep协议
 - [SRT支持](./srt/srt.md)
 - 其他
   - 支持丰富的restful api以及web hook事件 
@@ -199,6 +203,8 @@ bash build_docker_images.sh
 
  - 邮箱：<1213642868@qq.com>(本项目相关或流媒体相关问题请走issue流程，否则恕不邮件答复)
  - QQ群：两个qq群已满员(共4000人)，后续将不再新建qq群，用户可加入[知识星球](https://github.com/ZLMediaKit/ZLMediaKit/issues/2364)提问以支持本项目。
+ - 关注微信公众号：
+ <img src=https://user-images.githubusercontent.com/11495632/232451702-4c50bc72-84d8-4c94-af2b-57290088ba7a.png width=15% />
 
 ## 怎么提问？
 
@@ -300,6 +306,9 @@ bash build_docker_images.sh
 [TempoTian](https://github.com/TempoTian)
 [Derek Liu](https://github.com/yjkhtddx)
 [ljx0305](https://github.com/ljx0305)
+[朱如洪 ](https://github.com/zhu410289616)
+[lijin](https://github.com/1461521844lijin)
+[PioLing](https://github.com/PioLing)
 
 ## 使用案例
 
