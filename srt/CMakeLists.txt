@@ -30,7 +30,7 @@ target_link_libraries(srt
     ZLMediaKit::MediaKit
     ZLMediaKit::ToolKit)
 target_compile_options(srt
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 target_include_directories(srt
   PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"

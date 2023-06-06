@@ -27,7 +27,7 @@
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/jsoncpp/src/lib_json JSONCPP_SRC_LIST)
 add_library(jsoncpp STATIC ${JSONCPP_SRC_LIST})
 target_compile_options(jsoncpp
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 target_include_directories(jsoncpp
   PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>/jsoncpp/include"
@@ -55,7 +55,7 @@ if(ENABLE_MP4)
   target_compile_definitions(mov
     PUBLIC -DENABLE_MP4)
   target_compile_options(mov
-    PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+    PRIVATE ${DEFAULT_COMPILE_OPTIONS})
   target_include_directories(mov
     PRIVATE
       "$<BUILD_INTERFACE:${MediaServer_MOV_ROOT}/include>"
@@ -69,7 +69,7 @@ if(ENABLE_MP4)
   add_library(flv STATIC ${FLV_SRC_LIST})
   add_library(MediaServer::flv ALIAS flv)
   target_compile_options(flv
-    PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+    PRIVATE ${DEFAULT_COMPILE_OPTIONS})
   target_include_directories(flv
     PRIVATE
       "$<BUILD_INTERFACE:${MediaServer_FLV_ROOT}/include>"
@@ -95,7 +95,7 @@ if(ENABLE_RTPPROXY OR ENABLE_HLS)
   # MPEG_ZERO_PAYLOAD_LENGTH - 兼容hik流
   # MPEG_DAHUA_AAC_FROM_G711 - 兼容dahua流
   target_compile_options(mpeg
-    PRIVATE ${COMPILE_OPTIONS_DEFAULT} -DMPEG_H26X_VERIFY -DMPEG_ZERO_PAYLOAD_LENGTH -DMPEG_DAHUA_AAC_FROM_G711)
+    PRIVATE ${DEFAULT_COMPILE_OPTIONS} -DMPEG_H26X_VERIFY -DMPEG_ZERO_PAYLOAD_LENGTH -DMPEG_DAHUA_AAC_FROM_G711)
   target_include_directories(mpeg
     PRIVATE
       "$<BUILD_INTERFACE:${MediaServer_MPEG_ROOT}/include>"
@@ -190,7 +190,7 @@ add_library(ZLMediaKit::ToolKit ALIAS zltoolkit)
 target_compile_definitions(zltoolkit
   PUBLIC ${COMPILE_DEFINITIONS})
 target_compile_options(zltoolkit
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 target_include_directories(zltoolkit
   PRIVATE
     "$<BUILD_INTERFACE:${ToolKit_ROOT}/src>"

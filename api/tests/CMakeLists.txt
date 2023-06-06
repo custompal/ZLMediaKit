@@ -41,7 +41,7 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
   endif()
 
   target_link_libraries(${exe_name} mk_api)
-  target_compile_options(${exe_name} PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  target_compile_options(${exe_name} PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 endforeach()
 
 

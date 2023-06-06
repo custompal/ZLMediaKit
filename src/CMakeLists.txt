@@ -43,7 +43,7 @@ set(COMPILE_DEFINITIONS ${MK_COMPILE_DEFINITIONS})
 target_compile_definitions(zlmediakit
   PUBLIC ${COMPILE_DEFINITIONS})
 target_compile_options(zlmediakit
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 target_link_libraries(zlmediakit
   PUBLIC ${LINK_LIBRARIES})
 target_include_directories(zlmediakit

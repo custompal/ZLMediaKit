@@ -21,6 +21,12 @@
 # SOFTWARE.
 #
 
+#运行依赖库
+list(APPEND DEPEND_DLLS ${OPENSSL_DLL})
+if (LINUX AND ENABLE_X264)
+  list(APPEND DEPEND_DLLS ${X264_DLL})
+endif ()
+
 file(GLOB MediaServer_SRC_LIST ./*.cpp ./*.h)
 
 set(COMPILE_DEFINITIONS ${MK_COMPILE_DEFINITIONS})
@@ -31,7 +37,7 @@ if(ENABLE_SERVER_LIB)
   target_compile_definitions(MediaServer
     PRIVATE ${COMPILE_DEFINITIONS})
   target_compile_options(MediaServer
-    PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+    PRIVATE ${DEFAULT_COMPILE_OPTIONS})
   target_link_libraries(MediaServer
     PRIVATE ${MK_LINK_LIBRARIES})
   update_cached(MK_LINK_LIBRARIES MediaServer)
@@ -42,7 +48,7 @@ add_executable(MediaServer ${MediaServer_SRC_LIST})
 target_compile_definitions(MediaServer
   PRIVATE ${COMPILE_DEFINITIONS})
 target_compile_options(MediaServer
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   target_link_libraries(MediaServer -Wl,--start-group ${MK_LINK_LIBRARIES} -Wl,--end-group)
@@ -50,4 +56,5 @@ else()
   target_link_libraries(MediaServer ${MK_LINK_LIBRARIES})
 endif()
 
+copy_file(MediaServer ${DEPEND_DLLS})
 install(TARGETS MediaServer DESTINATION ${INSTALL_PATH_RUNTIME})

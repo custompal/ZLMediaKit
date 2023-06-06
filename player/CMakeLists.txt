@@ -1,4 +1,4 @@
-﻿# MIT License
+# MIT License
 #
 # Copyright (c) 2016-2022 The ZLMediaKit project authors. All Rights Reserved.
 #
@@ -21,32 +21,23 @@
 # SOFTWARE.
 #
 
+#运行依赖库
+list(APPEND DEPEND_DLLS ${FFMPEG_DLL})
+list(APPEND DEPEND_DLLS ${SDL2_DLL})
+list(APPEND DEPEND_DLLS ${OPENSSL_DLL})
+
 set(LINK_LIBRARIES ${MK_LINK_LIBRARIES})
 
-find_package(PkgConfig QUIET)
-# 查找 SDL2 是否安装
-if(PKG_CONFIG_FOUND)
-  pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
-  if(SDL2_FOUND)
-    list(APPEND LINK_LIBRARIES PkgConfig::SDL2)
-    message(STATUS "found library: ${SDL2_LIBRARIES}")
-  endif()
-else()
-  find_package(SDL2 QUIET)
-  if(SDL2_FOUND)
-    include_directories(SYSTEM ${SDL2_INCLUDE_DIR})
-    list(APPEND LINK_LIBRARIES ${SDL2_LIBRARY})
-    message(STATUS "found library: ${SDL2_LIBRARY}")
-  endif()
-endif()
+# 如果ffmpeg sdl2都启用了则编译播放器
+if (ENABLE_FFMPEG AND ENABLE_SDL2)
+    include_directories(SYSTEM ${SDL2_INC_DIR})
+    list(APPEND LINK_LIBRARIES ${LIB_SDL2})
+else ()
+    message(WARNING "${PLAYER_NAME} disabled, please enable ffmpeg and sdl2")
+    return()
+endif ()
 
 set(PLAYER_NAME "test_player")
-
-# 如果 ffmpeg/libavcodec ffmpeg/libavcodec SDL 都安装了则编译播放器
-if(NOT SDL2_FOUND)
-  message(WARNING "${PLAYER_NAME} disabled, please install sdl2 ffmpeg/libavcodec ffmpeg/libavutil ffmpeg/libswresample")
-  return()
-endif()
 
 message(STATUS "${PLAYER_NAME} enabled")
 
@@ -55,7 +46,7 @@ add_executable(${PLAYER_NAME} ${SRC_LIST})
 target_compile_definitions(${PLAYER_NAME}
   PRIVATE ${MK_COMPILE_DEFINITIONS})
 target_compile_options(${PLAYER_NAME}
-  PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+  PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 
 # TODO: 统一参数?
 if(MSVC)
@@ -67,3 +58,5 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 else()
   target_link_libraries(${PLAYER_NAME} ${LINK_LIBRARIES})
 endif()
+
+copy_file(${PLAYER_NAME} ${DEPEND_DLLS})

@@ -36,7 +36,7 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
   message(STATUS "add test: ${TEST_EXE_NAME}")
   add_executable(${TEST_EXE_NAME} ${TEST_SRC})
   target_compile_options(${TEST_EXE_NAME}
-    PRIVATE ${COMPILE_OPTIONS_DEFAULT})
+    PRIVATE ${DEFAULT_COMPILE_OPTIONS})
 
   target_compile_definitions(${TEST_EXE_NAME}
     PRIVATE ${MK_COMPILE_DEFINITIONS})
