@@ -66,7 +66,11 @@ RtpProcess::~RtpProcess() {
     //流量统计事件广播
     GET_CONFIG(uint32_t, iFlowThreshold, General::kFlowThreshold);
     if (_total_bytes >= iFlowThreshold * 1024) {
-        NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, false, static_cast<SockInfo &>(*this));
+        try {
+            NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, false, static_cast<SockInfo &>(*this));
+        } catch (std::exception &ex) {
+            WarnL << "Exception occurred: " << ex.what();
+        }
     }
 }
 
@@ -206,31 +210,27 @@ void RtpProcess::setOnDetach(function<void()> cb) {
 }
 
 string RtpProcess::get_peer_ip() {
-    if (!_addr) {
+    try {
+        return _addr ? SockUtil::inet_ntoa((sockaddr *)_addr.get()) : "::";
+    } catch (std::exception &ex) {
         return "::";
     }
-    return SockUtil::inet_ntoa((sockaddr *)_addr.get());
 }
 
 uint16_t RtpProcess::get_peer_port() {
-    if (!_addr) {
+    try {
+        return _addr ? SockUtil::inet_port((sockaddr *)_addr.get()) : 0;
+    } catch (std::exception &ex) {
         return 0;
     }
-    return SockUtil::inet_port((sockaddr *)_addr.get());
 }
 
 string RtpProcess::get_local_ip() {
-    if (_sock) {
-        return _sock->get_local_ip();
-    }
-    return "::";
+    return _sock ? _sock->get_local_ip() : "::";
 }
 
 uint16_t RtpProcess::get_local_port() {
-    if (_sock) {
-        return _sock->get_local_port();
-    }
-    return 0;
+    return _sock ? _sock->get_local_port() : 0;
 }
 
 string RtpProcess::getIdentifier() const {

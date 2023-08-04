@@ -20,7 +20,7 @@
 #include "Record/HlsMediaSource.h"
 #include "Common/Parser.h"
 #include "Common/config.h"
-#include "strCoding.h"
+#include "Common/strCoding.h"
 
 using namespace std;
 using namespace toolkit;
@@ -33,6 +33,7 @@ namespace mediakit {
 static int kHlsCookieSecond = 60;
 static const string kCookieName = "ZL_COOKIE";
 static const string kHlsSuffix = "/hls.m3u8";
+static const string kHlsFMP4Suffix = "/hls.fmp4.m3u8";
 
 struct HttpCookieAttachment {
     //是否已经查找到过MediaSource
@@ -46,7 +47,68 @@ struct HttpCookieAttachment {
 };
 
 const string &HttpFileManager::getContentType(const char *name) {
-    return getHttpContentType(name);
+    return HttpConst::getHttpContentType(name);
+}
+
+#ifndef ntohll
+static uint64_t ntohll(uint64_t val) {
+    return (((uint64_t)ntohl(val)) << 32) + ntohl(val >> 32);
+}
+#endif
+
+static uint64_t get_ip_uint64(const std::string &ip) {
+    try {
+        auto storage = SockUtil::make_sockaddr(ip.data(), 0);
+        if (storage.ss_family == AF_INET) {
+            return ntohl(reinterpret_cast<uint32_t &>(reinterpret_cast<struct sockaddr_in &>(storage).sin_addr));
+        }
+        if (storage.ss_family == AF_INET6) {
+            return ntohll(reinterpret_cast<uint64_t &>(reinterpret_cast<struct sockaddr_in6 &>(storage).sin6_addr));
+        }
+    } catch (std::exception &ex) {
+        WarnL << ex.what();
+    }
+    return 0;
+}
+
+bool HttpFileManager::isIPAllowed(const std::string &ip) {
+    using IPRangs = std::vector<std::pair<uint64_t /*min_ip*/, uint64_t /*max_ip*/>>;
+    GET_CONFIG_FUNC(IPRangs, allow_ip_range, Http::kAllowIPRange, [](const string &str) -> IPRangs {
+        IPRangs ret;
+        auto vec = split(str, ",");
+        for (auto &item : vec) {
+            if (trim(item).empty()) {
+                continue;
+            }
+            auto range = split(item, "-");
+            if (range.size() == 2) {
+                auto ip_min = get_ip_uint64(trim(range[0]));
+                auto ip_max = get_ip_uint64(trim(range[1]));
+                if (ip_min && ip_max) {
+                    ret.emplace_back(ip_min, ip_max);
+                }
+            } else if (range.size() == 1) {
+                auto ip = get_ip_uint64(trim(range[0]));
+                if (ip) {
+                    ret.emplace_back(ip, ip);
+                }
+            } else {
+                WarnL << "Invalid ip range: " << item;
+            }
+        }
+        return ret;
+    });
+
+    if (allow_ip_range.empty()) {
+        return true;
+    }
+    auto ip_int = get_ip_uint64(ip);
+    for (auto &range : allow_ip_range) {
+        if (ip_int >= range.first && ip_int <= range.second) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static string searchIndexFile(const string &dir){
@@ -240,8 +302,8 @@ public:
 static void canAccessPath(Session &sender, const Parser &parser, const MediaInfo &media_info, bool is_dir,
                           const function<void(const string &err_msg, const HttpServerCookie::Ptr &cookie)> &callback) {
     //获取用户唯一id
-    auto uid = parser.Params();
-    auto path = parser.Url();
+    auto uid = parser.params();
+    auto path = parser.url();
 
     //先根据http头中的cookie字段获取cookie
     HttpServerCookie::Ptr cookie = HttpCookieManager::Instance().getCookie(kCookieName, parser.getHeader());
@@ -268,7 +330,7 @@ static void canAccessPath(Session &sender, const Parser &parser, const MediaInfo
                 return;
             }
             //上次鉴权失败，但是如果url参数发生变更，那么也重新鉴权下
-            if (parser.Params().empty() || parser.Params() == cookie->getUid()) {
+            if (parser.params().empty() || parser.params() == cookie->getUid()) {
                 //url参数未变，或者本来就没有url参数，那么判断本次请求为重复请求，无访问权限
                 callback(attach._err_msg, update_cookie ? cookie : nullptr);
                 return;
@@ -278,7 +340,7 @@ static void canAccessPath(Session &sender, const Parser &parser, const MediaInfo
         HttpCookieManager::Instance().delCookie(cookie);
     }
 
-    bool is_hls = media_info.schema == HLS_SCHEMA;
+    bool is_hls = media_info.schema == HLS_SCHEMA || media_info.schema == HLS_FMP4_SCHEMA;
 
     SockInfoImp::Ptr info = std::make_shared<SockInfoImp>();
     info->_identifier = sender.getIdentifier();
@@ -320,10 +382,10 @@ static void canAccessPath(Session &sender, const Parser &parser, const MediaInfo
         return;
     }
 
-    //事件未被拦截，则认为是http下载请求
+    // 事件未被拦截，则认为是http下载请求
     bool flag = NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastHttpAccess, parser, path, is_dir, accessPathInvoker, static_cast<SockInfo &>(sender));
     if (!flag) {
-        //此事件无人监听，我们默认都有权限访问
+        // 此事件无人监听，我们默认都有权限访问
         callback("", nullptr);
     }
 }
@@ -355,7 +417,7 @@ static string pathCat(const string &a, const string &b){
  * @param cb 回调对象
  */
 static void accessFile(Session &sender, const Parser &parser, const MediaInfo &media_info, const string &file_path, const HttpFileManager::invoker &cb) {
-    bool is_hls = end_with(file_path, kHlsSuffix);
+    bool is_hls = end_with(file_path, kHlsSuffix) || end_with(file_path, kHlsFMP4Suffix);
     if (!is_hls && !File::fileExist(file_path.data())) {
         //文件不存在且不是hls,那么直接返回404
         sendNotFound(cb);
@@ -363,8 +425,13 @@ static void accessFile(Session &sender, const Parser &parser, const MediaInfo &m
     }
     if (is_hls) {
         // hls，那么移除掉后缀获取真实的stream_id并且修改协议为HLS
-        const_cast<string &>(media_info.schema) = HLS_SCHEMA;
-        replace(const_cast<string &>(media_info.stream), kHlsSuffix, "");
+        if (end_with(file_path, kHlsSuffix)) {
+            const_cast<string &>(media_info.schema) = HLS_SCHEMA;
+            replace(const_cast<string &>(media_info.stream), kHlsSuffix, "");
+        } else {
+            const_cast<string &>(media_info.schema) = HLS_FMP4_SCHEMA;
+            replace(const_cast<string &>(media_info.stream), kHlsFMP4Suffix, "");
+        }
     }
 
     weak_ptr<Session> weakSession = static_pointer_cast<Session>(sender.shared_from_this());
@@ -469,11 +536,11 @@ static string getFilePath(const Parser &parser,const MediaInfo &media_info, Sess
     if (it != virtualPathMap.end()) {
         //访问的是virtualPath
         path = it->second;
-        url = parser.Url().substr(1 + media_info.app.size());
+        url = parser.url().substr(1 + media_info.app.size());
     } else {
         //访问的是rootPath
         path = rootPath;
-        url = parser.Url();
+        url = parser.url();
     }
     for (auto &ch : url) {
         if (ch == '\\') {
@@ -493,7 +560,7 @@ static string getFilePath(const Parser &parser,const MediaInfo &media_info, Sess
  * @param cb 回调对象
  */
 void HttpFileManager::onAccessPath(Session &sender, Parser &parser, const HttpFileManager::invoker &cb) {
-    auto fullUrl = string(HTTP_SCHEMA) + "://" + parser["Host"] + parser.FullUrl();
+    auto fullUrl = string(HTTP_SCHEMA) + "://" + parser["Host"] + parser.fullUrl();
     MediaInfo media_info(fullUrl);
     auto file_path = getFilePath(parser, media_info, sender);
     if (file_path.size() == 0) {
@@ -506,13 +573,13 @@ void HttpFileManager::onAccessPath(Session &sender, Parser &parser, const HttpFi
         if (!indexFile.empty()) {
             //发现该文件夹下有index文件
             file_path = pathCat(file_path, indexFile);
-            parser.setUrl(pathCat(parser.Url(), indexFile));
+            parser.setUrl(pathCat(parser.url(), indexFile));
             accessFile(sender, parser, media_info, file_path, cb);
             return;
         }
         string strMenu;
         //生成文件夹菜单索引
-        if (!makeFolderMenu(parser.Url(), file_path, strMenu)) {
+        if (!makeFolderMenu(parser.url(), file_path, strMenu)) {
             //文件夹不存在
             sendNotFound(cb);
             return;
@@ -600,8 +667,8 @@ void HttpResponseInvokerImp::responseFile(const StrCaseMap &requestHeader,
     if (!strRange.empty()) {
         //分节下载
         code = 206;
-        auto iRangeStart = atoll(FindField(strRange.data(), "bytes=", "-").data());
-        auto iRangeEnd = atoll(FindField(strRange.data(), "-", nullptr).data());
+        auto iRangeStart = atoll(findSubString(strRange.data(), "bytes=", "-").data());
+        auto iRangeEnd = atoll(findSubString(strRange.data(), "-", nullptr).data());
         auto fileSize = fileBody->remainSize();
         if (iRangeEnd == 0) {
             iRangeEnd = fileSize - 1;

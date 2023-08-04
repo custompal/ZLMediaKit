@@ -34,6 +34,7 @@ option(ENABLE_API_STATIC_LIB "Enable mk_api static lib" OFF)
 option(ENABLE_CXX_API "Enable C++ API SDK" OFF)
 option(ENABLE_HLS "Enable HLS" ON)
 option(ENABLE_MP4 "Enable MP4" ON)
+option(ENABLE_HLS_FMP4 "Enable HLS-FMP4" ON)
 option(ENABLE_PLAYER "Enable Player" ON)
 option(ENABLE_RTPPROXY "Enable RTPPROXY" ON)
 option(ENABLE_SERVER "Enable Server" ON)
@@ -56,8 +57,8 @@ set(LIBRARY_OUTPUT_PATH ${OUTPUT_DIR})
 set(EXECUTABLE_OUTPUT_PATH ${OUTPUT_DIR})
 
 #mediakit以及各个runtime依赖
-update_cached_list(MK_COMPILE_DEFINITIONS ${LIST_COMPILE_DEFINITIONS})
-update_cached_list(MK_LINK_LIBRARIES ${LIST_LINK_LIBRARIES})
+update_cached(MK_COMPILE_DEFINITIONS ${LIST_COMPILE_DEFINITIONS})
+update_cached(MK_LINK_LIBRARIES ${LIST_LINK_LIBRARIES})
 
 if (DISABLE_REPORT)
     update_cached_list(MK_COMPILE_DEFINITIONS DISABLE_REPORT)
@@ -77,7 +78,7 @@ if (ENABLE_OPENSSL)
     update_cached_list(MK_LINK_LIBRARIES ${LIB_OPENSSL})
 else ()
     set(ENABLE_WEBRTC OFF)
-    message(WARNING "openssl 未启用, rtmp 将不支持 flash 播放器, https/wss/rtsps/rtmps 也将失效")
+    message(WARNING "openssl 未启用, rtmp 将不支持 flash 播放器, https/wss/rtsps/rtmps/webrtc 也将失效")
 endif ()
 
 #开启mysql
@@ -128,11 +129,6 @@ if (ENABLE_API)
     add_subdirectory(api)
 endif ()
 
-#IOS不编译可执行程序
-if (IOS)
-    return()
-endif ()
-
 ##############################################################################
 
 if (ENABLE_PLAYER AND ENABLE_FFMPEG)
@@ -145,8 +141,13 @@ if (ENABLE_SERVER)
 endif ()
 
 #Android会add_subdirectory并依赖该变量
-if (ENABLE_SERVER_LIB)
+if (ENABLE_SERVER_LIB AND NOT CMAKE_PARENT_LIST_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
     set(MK_LINK_LIBRARIES ${MK_LINK_LIBRARIES} PARENT_SCOPE)
+endif ()
+
+#IOS不编译可执行程序
+if (IOS)
+    return()
 endif ()
 
 #cpp测试demo程序

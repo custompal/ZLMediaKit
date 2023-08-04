@@ -46,7 +46,7 @@
 
 ## 功能清单
 ### 功能一览
-<img width="800" alt="功能一览" src="https://user-images.githubusercontent.com/11495632/190864440-91c45f8f-480f-43db-8110-5bb44e6300ff.png">
+<img width="800" alt="功能一览" src="https://github.com/ZLMediaKit/ZLMediaKit/assets/11495632/481ea769-5b27-495e-bf7d-31191e6af9d2">
 
 - RTSP[S]
   - RTSP[S] 服务器，支持RTMP/MP4/HLS转RTSP[S],支持亚马逊echo show这样的设备
@@ -63,14 +63,16 @@
   - RTMP[S] 发布服务器，支持录制发布流
   - RTMP[S] 播放器，支持RTMP代理，支持生成静音音频
   - RTMP[S] 推流客户端
-  - 支持http[s]-flv直播
+  - 支持http[s]-flv直播服务器
+  - 支持http[s]-flv直播播放器
   - 支持websocket-flv直播
   - 支持H264/H265/AAC/G711/OPUS编码，其他编码能转发但不能转协议
   - 支持[RTMP-H265](https://github.com/ksvc/FFmpeg/wiki)
   - 支持[RTMP-OPUS](https://github.com/ZLMediaKit/ZLMediaKit/wiki/RTMP%E5%AF%B9H265%E5%92%8COPUS%E7%9A%84%E6%94%AF%E6%8C%81)
+  - 支持[enhanced-rtmp(H265)](https://github.com/veovera/enhanced-rtmp)
 
 - HLS
-  - 支持HLS文件生成，自带HTTP文件服务器
+  - 支持HLS文件(mpegts/fmp4)生成，自带HTTP文件服务器
   - 通过cookie追踪技术，可以模拟HLS播放为长连接，可以实现HLS按需拉流、播放统计等业务
   - 支持HLS播发器，支持拉流HLS转rtsp/rtmp/mp4
   - 支持H264/H265/AAC/G711/OPUS编码
@@ -202,9 +204,12 @@ bash build_docker_images.sh
 ## 联系方式
 
  - 邮箱：<1213642868@qq.com>(本项目相关或流媒体相关问题请走issue流程，否则恕不邮件答复)
- - QQ群：两个qq群已满员(共4000人)，后续将不再新建qq群，用户可加入[知识星球](https://github.com/ZLMediaKit/ZLMediaKit/issues/2364)提问以支持本项目。
- - 关注微信公众号：
+ - 请关注微信公众号获取最新消息推送：
  <img src=https://user-images.githubusercontent.com/11495632/232451702-4c50bc72-84d8-4c94-af2b-57290088ba7a.png width=15% />
+ 
+ - 也可以自愿有偿加入知识星球咨询和获取资料：
+ <img src= https://user-images.githubusercontent.com/11495632/231946329-aa8517b0-3cf5-49cf-8c75-a93ed58cb9d2.png width=30% />
+  
 
 ## 怎么提问？
 
@@ -212,9 +217,7 @@ bash build_docker_images.sh
 
  - 1、仔细看下readme、wiki，如果有必要可以查看下issue.
  - 2、如果您的问题还没解决，可以提issue.
- - 3、有些问题，如果不具备参考性的，无需在issue提的，可以在qq群提.
- - 4、QQ私聊一般不接受无偿技术咨询和支持([为什么不提倡QQ私聊](https://github.com/ZLMediaKit/ZLMediaKit/wiki/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E5%BB%BA%E8%AE%AEQQ%E7%A7%81%E8%81%8A%E5%92%A8%E8%AF%A2%E9%97%AE%E9%A2%98%EF%BC%9F)).
- - 5、如果需要获取更及时贴心的技术支持，可以有偿加入[知识星球](https://github.com/ZLMediaKit/ZLMediaKit/issues/2364).
+ - 3、如果需要获取更及时贴心的技术支持，可以有偿加入[知识星球](https://github.com/ZLMediaKit/ZLMediaKit/issues/2364).
 
 ## 特别感谢
 
@@ -309,6 +312,15 @@ bash build_docker_images.sh
 [朱如洪 ](https://github.com/zhu410289616)
 [lijin](https://github.com/1461521844lijin)
 [PioLing](https://github.com/PioLing)
+[BackT0TheFuture](https://github.com/BackT0TheFuture)
+[perara](https://github.com/perara)
+[codeRATny](https://github.com/codeRATny)
+[dengjfzh](https://github.com/dengjfzh)
+[百鸣](https://github.com/ixingqiao)
+[fruit Juice](https://github.com/xuandu)
+[tbago](https://github.com/tbago)
+[Luosh](https://github.com/Luosh)
+[linxiaoyan87](https://github.com/linxiaoyan)
 
 ## 使用案例
 
