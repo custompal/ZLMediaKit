@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -251,7 +251,8 @@ static std::string httpBody() {
 
     args["rand_str"] = makeRandStr(32);
     for (auto &pr : mINI::Instance()) {
-        // 只获取转协议相关配置
+        // 只获取转协议相关配置  [AUTO-TRANSLATED:4e1e5840]
+        // Only get the configuration related to protocol conversion
         if (pr.first.find("protocol.") == 0) {
             args[pr.first] = pr.second;
         }
@@ -261,21 +262,25 @@ static std::string httpBody() {
 
 static void sendReport() {
     static HttpRequester::Ptr requester = std::make_shared<HttpRequester>();
-    // 获取一次静态信息，定时上报主要方便统计在线实例个数
+    // 获取一次静态信息，定时上报主要方便统计在线实例个数  [AUTO-TRANSLATED:1612d609]
+    // Get static information once, and report it regularly to facilitate statistics of the number of online instances
     static auto body = httpBody();
 
     requester->setMethod("POST");
     requester->setBody(body);
-    // http超时时间设置为30秒
+    // http超时时间设置为30秒  [AUTO-TRANSLATED:466f9b71]
+    // Set the http timeout to 30 seconds
     requester->startRequester(s_report_url, nullptr, 30);
 }
 
 static toolkit::onceToken s_token([]() {
-    NoticeCenter::Instance().addListener(nullptr, "kBroadcastEventPollerPoolStarted", [](EventPollerPool &pool, size_t &size) {
-        // 第一次汇报在程序启动后5分钟
+    NoticeCenter::Instance().addListener(nullptr, "kBroadcastEventPollerPoolStarted", [](EventPollerPoolOnStartedArgs) {
+        // 第一次汇报在程序启动后5分钟  [AUTO-TRANSLATED:02e6c508]
+        // The first report is 5 minutes after the program starts
         pool.getPoller()->doDelayTask(5 * 60 * 1000, []() {
             sendReport();
-            // 后续每一个小时汇报一次
+            // 后续每一个小时汇报一次  [AUTO-TRANSLATED:0322b8aa]
+            // Report every hour afterwards
             return 60 * 60 * 1000;
         });
     });

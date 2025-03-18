@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -27,13 +27,15 @@ using namespace toolkit;
 class WebRtcSession : public Session, public HttpRequestSplitter {
 public:
     WebRtcSession(const Socket::Ptr &sock);
-    ~WebRtcSession() override;
 
     void attachServer(const Server &server) override;
     void onRecv(const Buffer::Ptr &) override;
     void onError(const SockException &err) override;
     void onManager() override;
     static EventPoller::Ptr queryPoller(const Buffer::Ptr &buffer);
+
+protected:
+    WebRtcTransportImp::Ptr _transport;
 
 private:
     //// HttpRequestSplitter override ////
@@ -47,7 +49,6 @@ private:
     bool _find_transport = true;
     Ticker _ticker;
     std::weak_ptr<toolkit::TcpServer> _server;
-    WebRtcTransportImp::Ptr _transport;
 };
 
 }// namespace mediakit

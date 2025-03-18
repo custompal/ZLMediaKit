@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -108,7 +108,7 @@ API_EXPORT void API_CALL mk_http_requester_add_header(mk_http_requester ctx,cons
 API_EXPORT const char* API_CALL mk_http_requester_get_response_status(mk_http_requester ctx){
     assert(ctx);
     HttpRequester::Ptr *obj = (HttpRequester::Ptr *)ctx;
-    return (*obj)->response().Url().c_str();
+    return (*obj)->response().status().c_str();
 }
 
 API_EXPORT const char* API_CALL mk_http_requester_get_response_header(mk_http_requester ctx,const char *key){
@@ -121,9 +121,9 @@ API_EXPORT const char* API_CALL mk_http_requester_get_response_body(mk_http_requ
     assert(ctx);
     HttpRequester::Ptr *obj = (HttpRequester::Ptr *)ctx;
     if(length){
-       *length = (*obj)->response().Content().size();
+       *length = (*obj)->response().content().size();
     }
-    return (*obj)->response().Content().c_str();
+    return (*obj)->response().content().c_str();
 }
 
 API_EXPORT mk_parser API_CALL mk_http_requester_get_response(mk_http_requester ctx){

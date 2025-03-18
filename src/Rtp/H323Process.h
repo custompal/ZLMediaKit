@@ -15,16 +15,17 @@
 
 #include "Decoder.h"
 #include "ProcessInterface.h"
-#include "Rtsp/RtpCodec.h"
-#include "Rtsp/RtpReceiver.h"
 #include "Http/HttpRequestSplitter.h"
+#include "Rtsp/RtpCodec.h"
 #include "Common/MediaSource.h"
 
 namespace mediakit{
 
 class H323RtpReceiverImp;
 
-class H323Process : public mediakit::ProcessInterface {
+class H323Process
+    : public mediakit::ProcessInterface
+    , public MediaSinkInterface {
 public:
     using Ptr = std::shared_ptr<H323Process>;
 
@@ -36,8 +37,23 @@ public:
      * @param data rtp数据指针
      * @param data_len rtp数据长度
      * @return 是否解析成功
+     * Input rtp
+     * @param data rtp data pointer
+     * @param data_len rtp data length
+     * @return Whether the parsing is successful
+     
+     * [AUTO-TRANSLATED:d7b14ffe]
      */
     bool inputRtp(bool, const char *data, size_t data_len) override;
+
+    /**
+     * 刷新输出所有缓存
+     * Refresh and output all caches
+     
+     
+     * [AUTO-TRANSLATED:4509b01f]
+     */
+    void flush() override;
 
 protected:
     void onRtpSorted(mediakit::RtpPacket::Ptr rtp);
@@ -50,7 +66,7 @@ private:
     mediakit::MediaSinkInterface *_interface;
     std::shared_ptr<FILE> _save_file_video;
     std::shared_ptr<FILE> _save_file_audio;
-    std::unordered_map<uint8_t, std::shared_ptr<mediakit::RtpCodec>> _rtp_decoder;
+    std::unordered_map<uint8_t, RtpCodec::Ptr> _rtp_decoder;
     std::unordered_map<uint8_t, std::shared_ptr<H323RtpReceiverImp>> _rtp_receiver;
 };
 

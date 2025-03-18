@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -21,17 +21,21 @@ class RtspMediaSourceMuxer final : public RtspMuxer, public MediaSourceEventInte
 public:
     using Ptr = std::shared_ptr<RtspMediaSourceMuxer>;
 
-    RtspMediaSourceMuxer(const std::string &vhost,
-                         const std::string &strApp,
-                         const std::string &strId,
+    RtspMediaSourceMuxer(const MediaTuple& tuple,
                          const ProtocolOption &option,
                          const TitleSdp::Ptr &title = nullptr) : RtspMuxer(title) {
         _option = option;
-        _media_src = std::make_shared<RtspMediaSource>(vhost,strApp,strId);
+        _media_src = std::make_shared<RtspMediaSource>(tuple);
         getRtpRing()->setDelegate(_media_src);
     }
 
-    ~RtspMediaSourceMuxer() override { RtspMuxer::flush(); }
+    ~RtspMediaSourceMuxer() override {
+        try {
+            RtspMuxer::flush();
+        } catch (std::exception &ex) {
+            WarnL << ex.what();
+        }
+    }
 
     void setListener(const std::weak_ptr<MediaSourceEvent> &listener){
         setDelegate(listener);
@@ -46,7 +50,8 @@ public:
         _media_src->setTimeStamp(stamp);
     }
 
-    void onAllTrackReady(){
+    void addTrackCompleted() override {
+        RtspMuxer::addTrackCompleted();
         _media_src->setSdp(getSdp());
     }
 
@@ -70,7 +75,8 @@ public:
     }
 
     bool isEnabled() {
-        //缓存尚未清空时，还允许触发inputFrame函数，以便及时清空缓存
+        // 缓存尚未清空时，还允许触发inputFrame函数，以便及时清空缓存  [AUTO-TRANSLATED:7cfd4d49]
+        // The inputFrame function is still allowed to be triggered when the cache has not been cleared, so that the cache can be cleared in time.
         return _option.rtsp_demand ? (_clear_cache ? true : _enabled) : true;
     }
 

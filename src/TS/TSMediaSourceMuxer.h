@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -21,15 +21,18 @@ class TSMediaSourceMuxer final : public MpegMuxer, public MediaSourceEventInterc
 public:
     using Ptr = std::shared_ptr<TSMediaSourceMuxer>;
 
-    TSMediaSourceMuxer(const std::string &vhost,
-                       const std::string &app,
-                       const std::string &stream_id,
-                       const ProtocolOption &option) : MpegMuxer(false) {
+    TSMediaSourceMuxer(const MediaTuple& tuple, const ProtocolOption &option) : MpegMuxer(false) {
         _option = option;
-        _media_src = std::make_shared<TSMediaSource>(vhost, app, stream_id);
+        _media_src = std::make_shared<TSMediaSource>(tuple);
     }
 
-    ~TSMediaSourceMuxer() override { MpegMuxer::flush(); };
+    ~TSMediaSourceMuxer() override {
+        try {
+            MpegMuxer::flush();
+        } catch (std::exception &ex) {
+            WarnL << ex.what();
+        }
+    };
 
     void setListener(const std::weak_ptr<MediaSourceEvent> &listener){
         setDelegate(listener);
@@ -60,7 +63,8 @@ public:
     }
 
     bool isEnabled() {
-        //缓存尚未清空时，还允许触发inputFrame函数，以便及时清空缓存
+        // 缓存尚未清空时，还允许触发inputFrame函数，以便及时清空缓存  [AUTO-TRANSLATED:7cfd4d49]
+        // Allow the inputFrame function to be triggered even when the cache is not yet cleared, so that the cache can be cleared in time.
         return _option.ts_demand ? (_clear_cache ? true : _enabled) : true;
     }
 

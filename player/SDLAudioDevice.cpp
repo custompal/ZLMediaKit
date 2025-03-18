@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
  * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -33,9 +33,9 @@ SDLAudioDevice::SDLAudioDevice() {
         SDLAudioDevice *_this = (SDLAudioDevice *) userdata;
         _this->onReqPCM((char *) stream, len);
     };
-    if (SDL_OpenAudio(&wanted_spec, &_audio_config) < 0) {
-        throw std::runtime_error("SDL_OpenAudio failed");
-    }
+	if (SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &_audio_config, SDL_AUDIO_ALLOW_ANY_CHANGE) < 0) {
+		throw std::runtime_error("SDL_OpenAudioDevice failed");
+	}
 
     InfoL << "actual audioSpec, " << "freq:" << _audio_config.freq
           << ", format:" << hex << _audio_config.format << dec

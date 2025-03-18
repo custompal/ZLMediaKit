@@ -1,6 +1,6 @@
 ﻿# MIT License
 #
-# Copyright (c) 2016-2022 The ZLMediaKit project authors. All Rights Reserved.
+# Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -43,15 +43,3 @@ foreach(TEST_SRC ${TEST_SRC_LIST})
   target_link_libraries(${exe_name} mk_api)
   target_compile_options(${exe_name} PRIVATE ${COMPILE_OPTIONS_DEFAULT})
 endforeach()
-
-
-
-
-
-
-
-
-
-
-
-

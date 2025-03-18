@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -29,18 +29,27 @@ public:
     using Ptr = std::shared_ptr<GB28181Process>;
 
     GB28181Process(const MediaInfo &media_info, MediaSinkInterface *sink);
-    ~GB28181Process() override = default;
 
     /**
      * 输入rtp
      * @param data rtp数据指针
      * @param data_len rtp数据长度
      * @return 是否解析成功
+     * Input rtp
+     * @param data rtp data pointer
+     * @param data_len rtp data length
+     * @return Whether the parsing is successful
+     
+     * [AUTO-TRANSLATED:d7b14ffe]
      */
     bool inputRtp(bool, const char *data, size_t data_len) override;
 
     /**
      * 刷新输出所有缓存
+     * Refresh and output all caches
+     
+     
+     * [AUTO-TRANSLATED:4509b01f]
      */
     void flush() override;
 

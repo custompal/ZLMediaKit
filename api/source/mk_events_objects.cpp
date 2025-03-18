@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -18,65 +18,69 @@
 #include "Http/HttpClient.h"
 #include "Rtsp/RtspSession.h"
 
+#ifdef ENABLE_WEBRTC
+#include "webrtc/WebRtcTransport.h"
+#endif
+
 using namespace toolkit;
 using namespace mediakit;
 
 ///////////////////////////////////////////RecordInfo/////////////////////////////////////////////
-API_EXPORT uint64_t API_CALL mk_mp4_info_get_start_time(const mk_mp4_info ctx){
+API_EXPORT uint64_t API_CALL mk_record_info_get_start_time(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->start_time;
 }
 
-API_EXPORT float API_CALL mk_mp4_info_get_time_len(const mk_mp4_info ctx){
+API_EXPORT float API_CALL mk_record_info_get_time_len(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->time_len;
 }
 
-API_EXPORT size_t API_CALL mk_mp4_info_get_file_size(const mk_mp4_info ctx){
+API_EXPORT size_t API_CALL mk_record_info_get_file_size(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->file_size;
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_file_path(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_file_path(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->file_path.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_file_name(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_file_name(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->file_name.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_folder(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_folder(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->folder.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_url(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_url(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->url.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_vhost(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_vhost(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->vhost.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_app(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_app(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->app.c_str();
 }
 
-API_EXPORT const char* API_CALL mk_mp4_info_get_stream(const mk_mp4_info ctx){
+API_EXPORT const char *API_CALL mk_record_info_get_stream(const mk_record_info ctx) {
     assert(ctx);
     RecordInfo *info = (RecordInfo *)ctx;
     return info->stream.c_str();
@@ -86,17 +90,17 @@ API_EXPORT const char* API_CALL mk_mp4_info_get_stream(const mk_mp4_info ctx){
 API_EXPORT const char* API_CALL mk_parser_get_method(const mk_parser ctx){
     assert(ctx);
     Parser *parser = (Parser *)ctx;
-    return parser->Method().c_str();
+    return parser->method().c_str();
 }
 API_EXPORT const char* API_CALL mk_parser_get_url(const mk_parser ctx){
     assert(ctx);
     Parser *parser = (Parser *)ctx;
-    return parser->Url().c_str();
+    return parser->url().c_str();
 }
 API_EXPORT const char* API_CALL mk_parser_get_url_params(const mk_parser ctx){
     assert(ctx);
     Parser *parser = (Parser *)ctx;
-    return parser->Params().c_str();
+    return parser->params().c_str();
 }
 API_EXPORT const char* API_CALL mk_parser_get_url_param(const mk_parser ctx,const char *key){
     assert(ctx && key);
@@ -106,7 +110,7 @@ API_EXPORT const char* API_CALL mk_parser_get_url_param(const mk_parser ctx,cons
 API_EXPORT const char* API_CALL mk_parser_get_tail(const mk_parser ctx){
     assert(ctx);
     Parser *parser = (Parser *)ctx;
-    return parser->Tail().c_str();
+    return parser->protocol().c_str();
 }
 API_EXPORT const char* API_CALL mk_parser_get_header(const mk_parser ctx,const char *key){
     assert(ctx && key);
@@ -117,52 +121,59 @@ API_EXPORT const char* API_CALL mk_parser_get_content(const mk_parser ctx, size_
     assert(ctx);
     Parser *parser = (Parser *)ctx;
     if(length){
-        *length = parser->Content().size();
+        *length = parser->content().size();
     }
-    return parser->Content().c_str();
+    return parser->content().c_str();
+}
+API_EXPORT void API_CALL mk_parser_headers_for_each(const mk_parser ctx, on_mk_parser_header_cb cb, void *user_data){
+    assert(ctx && cb);
+    Parser *parser = (Parser *)ctx;
+    for (auto it = parser->getHeader().begin(); it != parser->getHeader().end(); ++it) {
+        cb(user_data, it->first.c_str(), it->second.c_str());
+    }
 }
 
 ///////////////////////////////////////////MediaInfo/////////////////////////////////////////////
 API_EXPORT const char* API_CALL mk_media_info_get_params(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_param_strs.c_str();
+    return info->params.c_str();
 }
 
 API_EXPORT const char* API_CALL mk_media_info_get_schema(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_schema.c_str();
+    return info->schema.c_str();
 }
 
 API_EXPORT const char* API_CALL mk_media_info_get_vhost(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_vhost.c_str();
+    return info->vhost.c_str();
 }
 
 API_EXPORT const char* API_CALL mk_media_info_get_host(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_host.c_str();
+    return info->host.c_str();
 }
 
 API_EXPORT uint16_t API_CALL mk_media_info_get_port(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_port;
+    return info->port;
 }
 
 API_EXPORT const char* API_CALL mk_media_info_get_app(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_app.c_str();
+    return info->app.c_str();
 }
 
 API_EXPORT const char* API_CALL mk_media_info_get_stream(const mk_media_info ctx){
     assert(ctx);
     MediaInfo *info = (MediaInfo *)ctx;
-    return info->_streamid.c_str();
+    return info->stream.c_str();
 }
 
 ///////////////////////////////////////////MediaSource/////////////////////////////////////////////
@@ -174,17 +185,17 @@ API_EXPORT const char* API_CALL mk_media_source_get_schema(const mk_media_source
 API_EXPORT const char* API_CALL mk_media_source_get_vhost(const mk_media_source ctx){
     assert(ctx);
     MediaSource *src = (MediaSource *)ctx;
-    return src->getVhost().c_str();
+    return src->getMediaTuple().vhost.c_str();
 }
 API_EXPORT const char* API_CALL mk_media_source_get_app(const mk_media_source ctx){
     assert(ctx);
     MediaSource *src = (MediaSource *)ctx;
-    return src->getApp().c_str();
+    return src->getMediaTuple().app.c_str();
 }
 API_EXPORT const char* API_CALL mk_media_source_get_stream(const mk_media_source ctx){
     assert(ctx);
     MediaSource *src = (MediaSource *)ctx;
-    return src->getId().c_str();
+    return src->getMediaTuple().stream.c_str();
 }
 API_EXPORT int API_CALL mk_media_source_get_reader_count(const mk_media_source ctx){
     assert(ctx);
@@ -198,6 +209,83 @@ API_EXPORT int API_CALL mk_media_source_get_total_reader_count(const mk_media_so
     return src->totalReaderCount();
 }
 
+API_EXPORT int API_CALL mk_media_source_get_track_count(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return src->getTracks(false).size();
+}
+
+API_EXPORT mk_track API_CALL mk_media_source_get_track(const mk_media_source ctx, int index) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    auto tracks = src->getTracks(false);
+    if (index < 0 && index >= tracks.size()) {
+        return nullptr;
+    }
+    return (mk_track) new Track::Ptr(std::move(tracks[index]));
+}
+
+API_EXPORT float API_CALL mk_media_source_get_track_loss(const mk_media_source ctx, const mk_track track) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    // rtp推流只有一个统计器，但是可能有多个track，如果短时间多次获取间隔丢包率，第二次会获取为-1  [AUTO-TRANSLATED:b30fec2c]
+    // RTP streaming has only one statistics object, but there may be multiple tracks. If the packet loss rate is obtained multiple times in a short period, the second time will be obtained as -1
+    return src->getLossRate((*((Track::Ptr *)track))->getTrackType());
+}
+
+API_EXPORT int API_CALL mk_media_source_broadcast_msg(const mk_media_source ctx, const char *msg, size_t len) {
+    assert(ctx && msg && len);
+    MediaSource *src = (MediaSource *)ctx;
+
+    Any any;
+    Buffer::Ptr buffer = std::make_shared<BufferLikeString>(std::string(msg, len));
+    any.set(std::move(buffer));
+    return src->broadcastMessage(any);
+}
+
+API_EXPORT const char* API_CALL mk_media_source_get_origin_url(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return _strdup(src->getOriginUrl().c_str());
+}
+
+API_EXPORT  int API_CALL mk_media_source_get_origin_type(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return static_cast<int>(src->getOriginType());
+}
+
+API_EXPORT const char* API_CALL mk_media_source_get_origin_type_str(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return _strdup(getOriginTypeString(src->getOriginType()).c_str());
+}
+
+API_EXPORT uint64_t API_CALL mk_media_source_get_create_stamp(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return src->getCreateStamp();
+}
+
+API_EXPORT int API_CALL mk_media_source_is_recording(const mk_media_source ctx,int type) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return src->isRecording((Recorder::type)type);
+}
+
+API_EXPORT int API_CALL mk_media_source_get_bytes_speed(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return src->getBytesSpeed();
+}
+
+API_EXPORT uint64_t API_CALL mk_media_source_get_alive_second(const mk_media_source ctx) {
+    assert(ctx);
+    MediaSource *src = (MediaSource *)ctx;
+    return src->getAliveSecond();
+}
+
+
 API_EXPORT int API_CALL mk_media_source_close(const mk_media_source ctx,int force){
     assert(ctx);
     MediaSource *src = (MediaSource *)ctx;
@@ -208,11 +296,11 @@ API_EXPORT int API_CALL mk_media_source_seek_to(const mk_media_source ctx,uint32
     MediaSource *src = (MediaSource *)ctx;
     return src->seekTo(stamp);
 }
-API_EXPORT void API_CALL mk_media_source_start_send_rtp(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int is_udp, on_mk_media_source_send_rtp_result cb, void *user_data) {
-    mk_media_source_start_send_rtp2(ctx, dst_url, dst_port, ssrc, is_udp, cb, user_data, nullptr);
+API_EXPORT void API_CALL mk_media_source_start_send_rtp(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, on_mk_media_source_send_rtp_result cb, void *user_data) {
+    mk_media_source_start_send_rtp2(ctx, dst_url, dst_port, ssrc, con_type, cb, user_data, nullptr);
 }
 
-API_EXPORT void API_CALL mk_media_source_start_send_rtp2(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int is_udp, on_mk_media_source_send_rtp_result cb, void *user_data, on_user_data_free user_data_free){
+API_EXPORT void API_CALL mk_media_source_start_send_rtp2(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, on_mk_media_source_send_rtp_result cb, void *user_data, on_user_data_free user_data_free){
     assert(ctx && dst_url && ssrc);
     MediaSource *src = (MediaSource *)ctx;
 
@@ -220,13 +308,53 @@ API_EXPORT void API_CALL mk_media_source_start_send_rtp2(const mk_media_source c
     args.dst_url = dst_url;
     args.dst_port = dst_port;
     args.ssrc = ssrc;
-    args.is_udp = is_udp;
+    args.close_delay_ms = 30 * 1000;
+    args.con_type = (mediakit::MediaSourceEvent::SendRtpArgs::ConType)con_type;
 
     std::shared_ptr<void> ptr(user_data, user_data_free ? user_data_free : [](void *) {});
-    src->startSendRtp(args, [cb, ptr](uint16_t local_port, const SockException &ex){
-        if (cb) {
-            cb(ptr.get(), local_port, ex.getErrCode(), ex.what());
-        }
+    src->getOwnerPoller()->async([=]() mutable {
+        src->startSendRtp(args, [cb, ptr](uint16_t local_port, const SockException &ex) {
+            if (cb) {
+                cb(ptr.get(), local_port, ex.getErrCode(), ex.what());
+            }
+        });
+
+    });
+}
+
+API_EXPORT void API_CALL mk_media_source_start_send_rtp3(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, mk_ini options, on_mk_media_source_send_rtp_result cb,void *user_data) {
+    mk_media_source_start_send_rtp4(ctx, dst_url, dst_port, ssrc, con_type, options, cb, user_data, nullptr);
+}
+API_EXPORT void API_CALL mk_media_source_start_send_rtp4(const mk_media_source ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, mk_ini options, on_mk_media_source_send_rtp_result cb,void *user_data, on_user_data_free user_data_free) {
+    assert(ctx && dst_url && ssrc);
+    MediaSource *src = (MediaSource *)ctx;
+
+    MediaSourceEvent::SendRtpArgs args;
+    args.dst_url = dst_url;
+    args.dst_port = dst_port;
+    args.ssrc = ssrc;
+    args.con_type = (mediakit::MediaSourceEvent::SendRtpArgs::ConType)con_type;
+    auto ini_ptr = (mINI *)options;
+    args.src_port = (*ini_ptr)["src_port"].empty() ? 0 : (*ini_ptr)["src_port"].as<int>();
+    args.ssrc_multi_send = (*ini_ptr)["ssrc_multi_send"].empty() ? false : (*ini_ptr)["ssrc_multi_send"].as<bool>();
+    args.pt = (*ini_ptr)["pt"].empty() ? 96 : (*ini_ptr)["pt"].as<int>();
+    args.data_type = (*ini_ptr)["data_type"].empty() ? MediaSourceEvent::SendRtpArgs::DataType::kRtpPS:(MediaSourceEvent::SendRtpArgs::DataType)(*ini_ptr)["data_type"].as<int>();
+    args.only_audio = (*ini_ptr)["only_audio"].empty() ? false : (*ini_ptr)["only_audio"].as<bool>();
+    args.udp_rtcp_timeout = (*ini_ptr)["udp_rtcp_timeout"].empty() ? false : (*ini_ptr)["udp_rtcp_timeout"].as<bool>();
+    args.recv_stream_id = (*ini_ptr)["recv_stream_id"];
+    args.recv_stream_app = src->getMediaTuple().app.c_str();
+    args.recv_stream_vhost = src->getMediaTuple().vhost.c_str();
+    args.close_delay_ms = (*ini_ptr)["close_delay_ms"].empty() ? 0 : (*ini_ptr)["close_delay_ms"].as<int>();
+    args.rtcp_timeout_ms = (*ini_ptr)["rtcp_timeout_ms"].empty() ? 30000 : (*ini_ptr)["rtcp_timeout_ms"].as<int>();
+    args.rtcp_send_interval_ms = (*ini_ptr)["rtcp_send_interval_ms"].empty() ? 5000 : (*ini_ptr)["rtcp_send_interval_ms"].as<int>();
+    std::shared_ptr<void> ptr(
+        user_data, user_data_free ? user_data_free : [](void *) {});
+    src->getOwnerPoller()->async([=]() mutable {
+        src->startSendRtp(args, [cb, ptr](uint16_t local_port, const SockException &ex) {
+            if (cb) {
+                cb(ptr.get(), local_port, ex.getErrCode(), ex.what());
+            }
+        });
     });
 }
 
@@ -246,6 +374,16 @@ API_EXPORT void API_CALL mk_media_source_find(const char *schema,
     assert(schema && vhost && app && stream && cb);
     auto src = MediaSource::find(schema, vhost, app, stream, from_mp4);
     cb(user_data, (mk_media_source)src.get());
+}
+
+API_EXPORT mk_media_source API_CALL mk_media_source_find2(const char *schema,
+                                                          const char *vhost,
+                                                          const char *app,
+                                                          const char *stream,
+                                                          int from_mp4) {
+    assert(schema && vhost && app && stream);
+    auto src = MediaSource::find(schema, vhost, app, stream, from_mp4);
+    return (mk_media_source)src.get();
 }
 
 API_EXPORT void API_CALL mk_media_source_for_each(void *user_data, on_mk_media_source_find_cb cb, const char *schema,
@@ -425,6 +563,13 @@ API_EXPORT void API_CALL mk_publish_auth_invoker_do(const mk_publish_auth_invoke
     (*invoker)(err_msg ? err_msg : "", option);
 }
 
+API_EXPORT void API_CALL mk_publish_auth_invoker_do2(const mk_publish_auth_invoker ctx, const char *err_msg, mk_ini ini) {
+    assert(ctx);
+    Broadcast::PublishAuthInvoker *invoker = (Broadcast::PublishAuthInvoker *)ctx;
+    ProtocolOption option(ini ? *((mINI *)ini) : mINI{} );
+    (*invoker)(err_msg ? err_msg : "", option);
+}
+
 API_EXPORT mk_publish_auth_invoker API_CALL mk_publish_auth_invoker_clone(const mk_publish_auth_invoker ctx){
     assert(ctx);
     Broadcast::PublishAuthInvoker *invoker = (Broadcast::PublishAuthInvoker *)ctx;
@@ -454,4 +599,23 @@ API_EXPORT void API_CALL mk_auth_invoker_clone_release(const mk_auth_invoker ctx
     assert(ctx);
     Broadcast::AuthInvoker *invoker = (Broadcast::AuthInvoker *)ctx;
     delete invoker;
+}
+
+///////////////////////////////////////////WebRtcTransport/////////////////////////////////////////////
+API_EXPORT void API_CALL mk_rtc_send_datachannel(const mk_rtc_transport ctx, uint16_t streamId, uint32_t ppid, const char *msg, size_t len) {
+#ifdef ENABLE_WEBRTC
+    assert(ctx && msg);
+    WebRtcTransport *transport = (WebRtcTransport *)ctx;
+    std::string msg_str(msg, len);
+    std::weak_ptr<WebRtcTransport> weak_trans = transport->shared_from_this();
+    transport->getPoller()->async([streamId, ppid, msg_str, weak_trans]() {
+        // 切换线程后再操作  [AUTO-TRANSLATED:12d77fca]
+        // Operate after switching threads
+        if (auto trans = weak_trans.lock()) {
+            trans->sendDatachannel(streamId, ppid, msg_str.c_str(), msg_str.size());
+        }
+    });
+#else
+    WarnL << "未启用webrtc功能, 编译时请开启ENABLE_WEBRTC";
+#endif
 }

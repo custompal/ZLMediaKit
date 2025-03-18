@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -68,7 +68,8 @@ private:
     std::deque<std::function<void(AMFValue &dec)> > _deque_on_status;
     std::unordered_map<int, std::function<void(AMFDecoder &dec)> > _map_on_result;
 
-    //推流超时定时器
+    // 推流超时定时器  [AUTO-TRANSLATED:7d2dcb86]
+    // Stream timeout timer
     std::shared_ptr<toolkit::Timer> _publish_timer;
     std::weak_ptr<RtmpMediaSource> _publish_src;
     RtmpMediaSource::RingType::RingReader::Ptr _rtmp_reader;

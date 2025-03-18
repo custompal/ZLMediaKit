@@ -1,9 +1,9 @@
 ﻿/*
  * Copyright (c) 2020 The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -17,22 +17,29 @@
 
 namespace mediakit {
 
-//http-ts播发器，未实现ts解复用
+// http-ts播发器，未实现ts解复用  [AUTO-TRANSLATED:cecbd6e7]
+// http-ts broadcaster, ts demultiplexing not implemented
 class HttpTSPlayer : public HttpClientImp {
 public:
     using Ptr = std::shared_ptr<HttpTSPlayer>;
     using onComplete = std::function<void(const toolkit::SockException &)>;
 
     HttpTSPlayer(const toolkit::EventPoller::Ptr &poller = nullptr);
-    ~HttpTSPlayer() override = default;
 
     /**
      * 设置下载完毕或异常断开回调
+     * Set the callback for download completion or abnormal disconnection
+     
+     * [AUTO-TRANSLATED:4f25d583]
      */
     void setOnComplete(onComplete cb);
 
     /**
      * 设置接收ts包回调
+     * Set the callback for receiving ts packets
+     
+     
+     * [AUTO-TRANSLATED:af3044a1]
      */
     void setOnPacket(TSSegment::onSegment cb);
 

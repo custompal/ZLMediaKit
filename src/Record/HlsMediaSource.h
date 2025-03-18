@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -25,32 +25,46 @@ public:
     using RingType = toolkit::RingBuffer<std::string>;
     using Ptr = std::shared_ptr<HlsMediaSource>;
 
-    HlsMediaSource(const std::string &vhost, const std::string &app, const std::string &stream_id)
-        : MediaSource(HLS_SCHEMA, vhost, app, stream_id) {}
-    ~HlsMediaSource() override = default;
+    HlsMediaSource(const std::string &schema, const MediaTuple &tuple) : MediaSource(schema, tuple) {}
 
     /**
      * 	获取媒体源的环形缓冲
+     * 	Get the circular buffer of the media source
+     
+     * [AUTO-TRANSLATED:75ac76b6]
      */
     const RingType::Ptr &getRing() const { return _ring; }
 
     /**
      * 获取播放器个数
+     * Get the number of players
+     
+     * [AUTO-TRANSLATED:a451c846]
      */
     int readerCount() override { return _ring ? _ring->readerCount() : 0; }
 
     /**
      * 设置或清空m3u8索引文件内容
+     * Set or clear the m3u8 index file content
+     
+     * [AUTO-TRANSLATED:71db921d]
      */
     void setIndexFile(std::string index_file);
 
     /**
      * 异步获取m3u8文件
+     * Asynchronously get the m3u8 file
+     
+     * [AUTO-TRANSLATED:e962b3ad]
      */
     void getIndexFile(std::function<void(const std::string &str)> cb);
 
     /**
      * 同步获取m3u8文件
+     * Synchronously get the m3u8 file
+     
+     
+     * [AUTO-TRANSLATED:52b228df]
      */
     std::string getIndexFile() const {
         std::lock_guard<std::mutex> lck(_mtx_index);
@@ -58,6 +72,11 @@ public:
     }
 
     void onSegmentSize(size_t bytes) { _speed[TrackVideo] += bytes; }
+
+    void getPlayerList(const std::function<void(const std::list<toolkit::Any> &info_list)> &cb,
+                       const std::function<toolkit::Any(toolkit::Any &&info)> &on_change) override {
+        _ring->getInfoList(cb, on_change);
+    }
 
 private:
     RingType::Ptr _ring;

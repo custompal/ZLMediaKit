@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -11,29 +11,33 @@
 #if defined(ENABLE_RTPPROXY)
 #include "GB28181Process.h"
 #include "RtpProcess.h"
-#include "Http/HttpTSPlayer.h"
 #include "Util/File.h"
 #include "Common/config.h"
 
 using namespace std;
 using namespace toolkit;
 
-static constexpr char kRtpAppName[] = "rtp";
-//在创建_muxer对象前(也就是推流鉴权成功前)，需要先缓存frame，这样可以防止丢包，提高体验
-//但是同时需要控制缓冲长度，防止内存溢出。200帧数据，大概有10秒数据，应该足矣等待鉴权hook返回
-static constexpr size_t kMaxCachedFrame = 200;
+// 在创建_muxer对象前(也就是推流鉴权成功前)，需要先缓存frame，这样可以防止丢包，提高体验  [AUTO-TRANSLATED:fb12a6c2]
+// Before creating the _muxer object (before the streaming authentication is successful), you need to cache the frame first, which can prevent packet loss and improve the experience.
+// 但是同时需要控制缓冲长度，防止内存溢出。最多缓存10秒数据，应该足矣等待鉴权hook返回  [AUTO-TRANSLATED:23ff0a4a]
+// But at the same time, you need to control the buffer length to prevent memory overflow. Caching 10 seconds of data should be enough to wait for the authentication hook to return.
+static constexpr size_t kMaxCachedFrameMS = 10 * 1000;
 
 namespace mediakit {
 
-RtpProcess::RtpProcess(const string &stream_id) {
-    _media_info._schema = kRtpAppName;
-    _media_info._vhost = DEFAULT_VHOST;
-    _media_info._app = kRtpAppName;
-    _media_info._streamid = stream_id;
+RtpProcess::Ptr RtpProcess::createProcess(const MediaTuple &tuple) {
+    RtpProcess::Ptr ret(new RtpProcess(tuple));
+    ret->createTimer();
+    return ret;
+}
+
+RtpProcess::RtpProcess(const MediaTuple &tuple) {
+    _media_info.schema = "rtp";
+    static_cast<MediaTuple &>(_media_info) = tuple;
 
     GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
     {
-        FILE *fp = !dump_dir.empty() ? File::create_file(File::absolutePath(_media_info._streamid + ".rtp", dump_dir).data(), "wb") : nullptr;
+        FILE *fp = !dump_dir.empty() ? File::create_file(File::absolutePath(_media_info.stream + ".rtp", dump_dir), "wb") : nullptr;
         if (fp) {
             _save_file_rtp.reset(fp, [](FILE *fp) {
                 fclose(fp);
@@ -42,7 +46,7 @@ RtpProcess::RtpProcess(const string &stream_id) {
     }
 
     {
-        FILE *fp = !dump_dir.empty() ? File::create_file(File::absolutePath(_media_info._streamid + ".video", dump_dir).data(), "wb") : nullptr;
+        FILE *fp = !dump_dir.empty() ? File::create_file(File::absolutePath(_media_info.stream + ".video", dump_dir), "wb") : nullptr;
         if (fp) {
             _save_file_video.reset(fp, [](FILE *fp) {
                 fclose(fp);
@@ -63,10 +67,15 @@ RtpProcess::~RtpProcess() {
                 << _media_info.shortUrl()
                 << ")断开,耗时(s):" << duration;
 
-    //流量统计事件广播
+    // 流量统计事件广播  [AUTO-TRANSLATED:6b0b1234]
+    // Traffic statistics event broadcast
     GET_CONFIG(uint32_t, iFlowThreshold, General::kFlowThreshold);
     if (_total_bytes >= iFlowThreshold * 1024) {
-        NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, false, static_cast<SockInfo &>(*this));
+        try {
+            NOTICE_EMIT(BroadcastFlowReportArgs, Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, false, *this);
+        } catch (std::exception &ex) {
+            WarnL << "Exception occurred: " << ex.what();
+        }
     }
 }
 
@@ -74,18 +83,43 @@ void RtpProcess::enableRtpCheck(bool enable) {
     _enable_rtp_check = enable;
 }
 
+void RtpProcess::onManager() {
+    if (!alive()) {
+        onDetach(SockException(Err_timeout, "RtpProcess timeout"));
+    }
+}
+
+void RtpProcess::createTimer() {
+    // 创建超时管理定时器  [AUTO-TRANSLATED:865cf865]
+    // Create a timeout management timer
+    weak_ptr<RtpProcess> weakSelf = shared_from_this();
+    _timer = std::make_shared<Timer>(3.0f, [weakSelf] {
+        auto strongSelf = weakSelf.lock();
+        if (!strongSelf) {
+            return false;
+        }
+        strongSelf->onManager();
+        return true;
+    }, EventPollerPool::Instance().getPoller());
+}
+
 bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint64_t *dts_out) {
     if (!isRtp(data, len)) {
         WarnP(this) << "Not rtp packet";
         return false;
     }
+    if (!_auth_err.empty()) {
+        throw toolkit::SockException(toolkit::Err_other, _auth_err);
+    }
     if (_sock != sock) {
-        // 第一次运行本函数
+        // 第一次运行本函数  [AUTO-TRANSLATED:a1d7ac17]
+        // First time running this function
         bool first = !_sock;
         _sock = sock;
         _addr.reset(new sockaddr_storage(*((sockaddr_storage *)addr)));
         if (first) {
             emitOnPublish();
+            _cache_ticker.resetTime();
         }
     }
 
@@ -97,6 +131,7 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
         fwrite((uint8_t *) data, len, 1, _save_file_rtp.get());
     }
     if (!_process) {
+        _media_info.protocol = is_udp ? "udp" : "tcp";
         _process = std::make_shared<GB28181Process>(_media_info, this);
     }
 
@@ -105,7 +140,8 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
 
     GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
     if (_muxer && !_muxer->isEnabled() && !dts_out && dump_dir.empty()) {
-        //无人访问、且不取时间戳、不导出调试文件时，我们可以直接丢弃数据
+        // 无人访问、且不取时间戳、不导出调试文件时，我们可以直接丢弃数据  [AUTO-TRANSLATED:2fc75705]
+        // When there is no access, and no timestamp is taken, and no debug file is exported, we can directly discard the data.
         _last_frame_time.resetTime();
         return false;
     }
@@ -126,8 +162,8 @@ bool RtpProcess::inputFrame(const Frame::Ptr &frame) {
         _last_frame_time.resetTime();
         return _muxer->inputFrame(frame);
     }
-    if (_cached_func.size() > kMaxCachedFrame) {
-        WarnL << "cached frame of track(" << frame->getCodecName() << ") is too much, now dropped, please check your on_publish hook url in config.ini file";
+    if (_cache_ticker.elapsedTime() > kMaxCachedFrameMS) {
+        WarnL << "Cached frame of stream(" << _media_info.stream << ") is too much, your on_publish hook responded too late!";
         return false;
     }
     auto frame_cached = Frame::getCacheAbleFrame(frame);
@@ -183,7 +219,8 @@ bool RtpProcess::alive() {
     }
     if (_stop_rtp_check.load()) {
         if(_last_check_alive.elapsedTime() > 5 * 60 * 1000){
-            //最多暂停5分钟的rtp超时检测，因为NAT映射有效期一般不会太长
+            // 最多暂停5分钟的rtp超时检测，因为NAT映射有效期一般不会太长  [AUTO-TRANSLATED:2df59aad]
+            // Pause the RTP timeout detection for a maximum of 5 minutes, because the NAT mapping validity period is generally not very long.
             _stop_rtp_check = false;
         } else {
             return true;
@@ -205,50 +242,47 @@ void RtpProcess::setStopCheckRtp(bool is_check){
     }
 }
 
-void RtpProcess::setOnlyAudio(bool only_audio){
-    _only_audio = only_audio;
+void RtpProcess::setOnlyTrack(OnlyTrack only_track) {
+    _only_track = only_track;
 }
 
-void RtpProcess::onDetach() {
+void RtpProcess::onDetach(const SockException &ex) {
     if (_on_detach) {
-        _on_detach();
+        WarnL << ex << ", stream_id: " << getIdentifier();
+        _on_detach(ex);
     }
 }
 
-void RtpProcess::setOnDetach(function<void()> cb) {
+void RtpProcess::setOnDetach(onDetachCB cb) {
     _on_detach = std::move(cb);
 }
 
 string RtpProcess::get_peer_ip() {
-    if (!_addr) {
+    try {
+        return _addr ? SockUtil::inet_ntoa((sockaddr *)_addr.get()) : "::";
+    } catch (std::exception &ex) {
         return "::";
     }
-    return SockUtil::inet_ntoa((sockaddr *)_addr.get());
 }
 
 uint16_t RtpProcess::get_peer_port() {
-    if (!_addr) {
+    try {
+        return _addr ? SockUtil::inet_port((sockaddr *)_addr.get()) : 0;
+    } catch (std::exception &ex) {
         return 0;
     }
-    return SockUtil::inet_port((sockaddr *)_addr.get());
 }
 
 string RtpProcess::get_local_ip() {
-    if (_sock) {
-        return _sock->get_local_ip();
-    }
-    return "::";
+    return _sock ? _sock->get_local_ip() : "::";
 }
 
 uint16_t RtpProcess::get_local_port() {
-    if (_sock) {
-        return _sock->get_local_port();
-    }
-    return 0;
+    return _sock ? _sock->get_local_port() : 0;
 }
 
 string RtpProcess::getIdentifier() const {
-    return _media_info._streamid;
+    return _media_info.stream;
 }
 
 void RtpProcess::emitOnPublish() {
@@ -267,30 +301,31 @@ void RtpProcess::emitOnPublish() {
             if (err.empty()) {
                 auto &on_create_media_muxer = getOnCreateMediaMuxer();
                 if (on_create_media_muxer) {
-                    strong_self->_muxer = on_create_media_muxer(
-                        strong_self->_media_info._vhost, strong_self->_media_info._app,
-                        strong_self->_media_info._streamid, 0.0f, option);
+                    strong_self->_muxer = on_create_media_muxer(strong_self->_media_info, 0.0f, option);
                 } else {
-                    strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
-                        strong_self->_media_info._vhost, strong_self->_media_info._app,
-                        strong_self->_media_info._streamid, 0.0f, option);
+                    strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(strong_self->_media_info, 0.0f, option);
                 }
-                if (strong_self->_only_audio) {
-                    strong_self->_muxer->setOnlyAudio();
+                switch (strong_self->_only_track) {
+                    case kOnlyAudio: strong_self->_muxer->setOnlyAudio(); break;
+                    case kOnlyVideo: strong_self->_muxer->enableAudio(false); break;
+                    default: break;
                 }
                 strong_self->_muxer->setMediaListener(strong_self);
                 strong_self->doCachedFunc();
                 InfoP(strong_self) << "允许RTP推流";
             } else {
+                strong_self->_auth_err = err;
                 WarnP(strong_self) << "禁止RTP推流:" << err;
             }
         });
     };
 
-    //触发推流鉴权事件
-    auto flag = NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastMediaPublish, MediaOriginType::rtp_push, _media_info, invoker, static_cast<SockInfo &>(*this));
+    // 触发推流鉴权事件  [AUTO-TRANSLATED:cd889b29]
+    // Trigger the streaming authentication event
+    auto flag = NOTICE_EMIT(BroadcastMediaPublishArgs, Broadcast::kBroadcastMediaPublish, MediaOriginType::rtp_push, _media_info, invoker, *this);
     if (!flag) {
-        //该事件无人监听,默认不鉴权
+        // 该事件无人监听,默认不鉴权  [AUTO-TRANSLATED:e1fbc6ae]
+        // No one is listening to this event, and authentication is not performed by default.
         invoker("", ProtocolOption());
     }
 }
@@ -307,11 +342,20 @@ std::shared_ptr<SockInfo> RtpProcess::getOriginSock(MediaSource &sender) const {
     return const_cast<RtpProcess *>(this)->shared_from_this();
 }
 
+RtpProcess::Ptr RtpProcess::getRtpProcess(mediakit::MediaSource &sender) const {
+    return const_cast<RtpProcess *>(this)->shared_from_this();
+}
+
+bool RtpProcess::close(mediakit::MediaSource &sender) {
+    onDetach(SockException(Err_shutdown, "close media"));
+    return true;
+}
+
 toolkit::EventPoller::Ptr RtpProcess::getOwnerPoller(MediaSource &sender) {
     if (_sock) {
         return _sock->getPoller();
     }
-    throw std::runtime_error("RtpProcess::getOwnerPoller failed:" + _media_info._streamid);
+    throw std::runtime_error("RtpProcess::getOwnerPoller failed:" + _media_info.stream);
 }
 
 float RtpProcess::getLossRate(MediaSource &sender, TrackType type) {
@@ -320,6 +364,10 @@ float RtpProcess::getLossRate(MediaSource &sender, TrackType type) {
         return -1;
     }
     return getLostInterval() * 100 / expected;
+}
+
+const toolkit::Socket::Ptr& RtpProcess::getSock() const {
+    return _sock;
 }
 
 }//namespace mediakit

@@ -12,14 +12,11 @@
 #include "H323Process.h"
 #include "Extension/CommonRtp.h"
 #include "Extension/Factory.h"
-#include "Extension/G711.h"
-#include "Extension/H264Rtp.h"
-#include "Extension/H265.h"
-#include "Extension/AAC.h"
-#include "Extension/Opus.h"
 #include "Http/HttpTSPlayer.h"
 #include "Util/File.h"
 #include "Common/config.h"
+#include "Rtsp/RtpReceiver.h"
+#include "Rtsp/Rtsp.h"
 
 using namespace std;
 using namespace toolkit;
@@ -38,81 +35,12 @@ public:
         setNtpStamp(0, 0);
     }
 
-    ~H323RtpReceiverImp() override = default;
-
     bool inputRtp(TrackType type, uint8_t *ptr, size_t len) {
-        if (len < RtpPacket::kRtpHeaderSize) {
-            WarnL << "rtp size(" << len << ") less than 12";
-            return false;
-        }
-        GET_CONFIG(uint32_t, rtpMaxSize, Rtp::kRtpMaxSize);
-        if (len > 1024 * rtpMaxSize) {
-            WarnL << "超大的rtp包:" << len << " > " << 1024 * rtpMaxSize;
-            return false;
-        }
-        if (!_sample_rate) {
-            //无法把时间戳转换成毫秒
-            return false;
-        }
-        RtpHeader *header = (RtpHeader *)ptr;
-        // if (header->version != RtpPacket::kRtpVersion) {
-        //    throw BadRtpException("invalid rtp version");
-        //}
-        // if (header->getPayloadSize(len) < 0) {
-        //    // rtp有效负载小于0，非法
-        //    throw BadRtpException("invalid rtp payload size");
-        //}
-
-        //比对缓存ssrc
-        auto ssrc = ntohl(header->ssrc);
-        auto pt = header->pt;
-        auto it = _ssrc.find(pt);
-        if (it == _ssrc.end()) {
-            //记录并锁定ssrc
-            _ssrc[pt] = ssrc;
-            _ssrc_alive[pt] = make_shared<Ticker>();
-        } else if (_ssrc[pt] == ssrc) {
-            // ssrc匹配正确,刷新计时器
-            _ssrc_alive[pt]->resetTime();
-        } else {
-            // ssrc错误
-            if (_ssrc_alive[pt]->elapsedTime() < 3 * 1000) {
-                //接受正确ssrc的rtp在10秒内，那么我们认为存在多路rtp,忽略掉ssrc不匹配的rtp
-                WarnL << "ssrc mismatch, rtp dropped:" << ssrc << " != " << _ssrc[pt];
-                return false;
-            }
-            InfoL << "rtp ssrc changed:" << _ssrc[pt] << " -> " << ssrc;
-            _ssrc[pt] = ssrc;
-            _ssrc_alive[pt]->resetTime();
-        }
-
-        auto rtp = RtpPacket::create();
-        //需要添加4个字节的rtp over tcp头
-        rtp->setCapacity(RtpPacket::kRtpTcpHeaderSize + len);
-        rtp->setSize(RtpPacket::kRtpTcpHeaderSize + len);
-        rtp->sample_rate = _sample_rate;
-        rtp->type = type;
-
-        //赋值4个字节的rtp over tcp头
-        uint8_t *data = (uint8_t *)rtp->data();
-        data[0] = '$';
-        data[1] = 2 * type;
-        data[2] = (len >> 8) & 0xFF;
-        data[3] = len & 0xFF;
-        //拷贝rtp
-        memcpy(&data[4], ptr, len);
-        //不支持ntp时间戳，直接使用rtp时间戳
-        rtp->ntp_stamp = rtp->getStamp() * uint64_t(1000) / _sample_rate;
-
-        onBeforeRtpSorted(rtp);
-        sortPacket(rtp->getSeq(), rtp);
-        return rtp.operator bool();
+        return RtpTrack::inputRtp(type, _sample_rate, ptr, len).operator bool();
     }
 
 private:
     int _sample_rate;
-    std::unordered_map<uint8_t, uint32_t> _ssrc;
-    std::unordered_map<uint8_t, shared_ptr<Ticker>> _ssrc_alive;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -127,90 +55,101 @@ void H323Process::onRtpSorted(RtpPacket::Ptr rtp) {
     _rtp_decoder[rtp->getHeader()->pt]->inputRtp(rtp, false);
 }
 
+void H323Process::flush() {
+    //if (_decoder) {
+    //    _decoder->flush();
+    //}
+}
+
 bool H323Process::inputRtp(bool, const char *data, size_t data_len) {
+    GET_CONFIG(uint32_t, h264_pt, RtpProxy::kH264PT);
+    GET_CONFIG(uint32_t, h265_pt, RtpProxy::kH265PT);
+    GET_CONFIG(uint32_t, ps_pt, RtpProxy::kPSPT);
+    GET_CONFIG(uint32_t, opus_pt, RtpProxy::kOpusPT);
+
     RtpHeader *header = (RtpHeader *)data;
-
-    //先过滤无效的rtp包
-    if (header->version != RtpPacket::kRtpVersion) {
-        return false;
-    }
-    if (!header->getPayloadSize(data_len)) {
-        //无有效负载的rtp包
-        return false;
-    }
-
     auto pt = header->pt;
     auto &ref = _rtp_receiver[pt];
     if (!ref) {
         if (_rtp_receiver.size() > 2) {
-            //防止pt类型太多导致内存溢出
-            WarnL << "drop payload " << pt;
-            throw std::invalid_argument("rtp pt类型不得超过2种!");
-        }
-        switch (pt) {
-            case 0:
-                // CodecG711U
-            case 8: {
-                // CodecG711A
-                ref = std::make_shared<H323RtpReceiverImp>(
-                    8000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
-
-                auto track = std::make_shared<G711Track>(pt == 0 ? CodecG711U : CodecG711A, 8000, 1, 16);
-                _interface->addTrack(track);
-                _rtp_decoder[pt] = Factory::getRtpDecoderByTrack(track);
-                break;
-            }
-            case 99: {
-                // aac负载
-                ref = std::make_shared<H323RtpReceiverImp>(
-                    90000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
-
-                auto track = std::make_shared<AACTrack>();
-                _interface->addTrack(track);
-                _rtp_decoder[pt] = Factory::getRtpDecoderByTrack(track);
-                break;
-            }
-            case 100: {
-                // opus负载
-                ref = std::make_shared<H323RtpReceiverImp>(
-                    48000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
-
-                auto track = std::make_shared<OpusTrack>();
-                _interface->addTrack(track);
-                _rtp_decoder[pt] = Factory::getRtpDecoderByTrack(track);
-                break;
-            }
-            default: {
-                //统一当作H264负载
-                ref = std::make_shared<H323RtpReceiverImp>(
-                    90000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
-
-                auto track = std::make_shared<H264Track>();
-                _interface->addTrack(track);
-                _rtp_decoder[pt] = Factory::getRtpDecoderByTrack(track);
-                break;
-            }
+            // 防止pt类型太多导致内存溢出  [AUTO-TRANSLATED:7695e49b]
+            // Prevent too many pt types from causing memory overflow
+            WarnL << "Rtp payload type more than 2 types: " << _rtp_receiver.size();
         }
 
-        //设置dump目录
-        GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
-        if (!dump_dir.empty()) {
-            auto video_path = File::absolutePath(_media_info._streamid + "_video.mp2", dump_dir);
-            auto audio_path = File::absolutePath(_media_info._streamid + "_audio.mp2", dump_dir);
-            _save_file_video.reset(File::create_file(video_path.data(), "wb"), [](FILE *fp) {
-                if (fp) {
-                    fclose(fp);
+        do {
+            if (pt < 96) {
+                auto codec = RtpPayload::getCodecId(pt);
+                if (codec != CodecInvalid && codec != CodecTS) {
+                    auto sample_rate = RtpPayload::getClockRate(pt);
+                    auto channels = RtpPayload::getAudioChannel(pt);
+                    ref = std::make_shared<H323RtpReceiverImp>(sample_rate, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
+                    auto track = Factory::getTrackByCodecId(codec, sample_rate, channels);
+                    CHECK(track);
+                    track->setIndex(pt);
+                    _interface->addTrack(track);
+                    _rtp_decoder[pt] = Factory::getRtpDecoderByCodecId(track->getCodecId());
+                    break;
                 }
-            });
-            _save_file_audio.reset(File::create_file(audio_path.data(), "wb"), [](FILE *fp) {
-                if (fp) {
-                    fclose(fp);
-                }
-            });
-        }
+            }
+            if (pt == opus_pt) {
+                // opus负载  [AUTO-TRANSLATED:defa6a8d]
+                // opus payload
+                ref = std::make_shared<H323RtpReceiverImp>(48000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
+                auto track = Factory::getTrackByCodecId(CodecOpus);
+                CHECK(track);
+                track->setIndex(pt);
+                _interface->addTrack(track);
+                _rtp_decoder[pt] = Factory::getRtpDecoderByCodecId(track->getCodecId());
+                break;
+            }
+            if (pt == h265_pt) {
+                // H265负载  [AUTO-TRANSLATED:61fbcf7f]
+                // H265 payload
+                ref = std::make_shared<H323RtpReceiverImp>(90000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
+                auto track = Factory::getTrackByCodecId(CodecH265);
+                CHECK(track);
+                track->setIndex(pt);
+                _interface->addTrack(track);
+                _rtp_decoder[pt] = Factory::getRtpDecoderByCodecId(track->getCodecId());
+                break;
+            }
+            if (pt == h264_pt) {
+                // H264负载  [AUTO-TRANSLATED:6f3fbb0d]
+                // H264 payload
+                ref = std::make_shared<H323RtpReceiverImp>(90000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
+                auto track = Factory::getTrackByCodecId(CodecH264);
+                CHECK(track);
+                track->setIndex(pt);
+                _interface->addTrack(track);
+                _rtp_decoder[pt] = Factory::getRtpDecoderByCodecId(track->getCodecId());
+                break;
+            }
 
-        //设置frame回调
-        _rtp_decoder[pt]->addDelegate([this](const Frame::Ptr &frame) {
+            if (pt != Rtsp::PT_MP2T && pt != ps_pt) {
+                WarnL << "Unknown rtp payload type(" << (int)pt << "), decode it as mpeg-ps or mpeg-ts";
+            }
+            ref = std::make_shared<H323RtpReceiverImp>(90000, [this](RtpPacket::Ptr rtp) { onRtpSorted(std::move(rtp)); });
+            // ts或ps负载  [AUTO-TRANSLATED:3ca31480]
+            // ts or ps payload
+            _rtp_decoder[pt] = std::make_shared<CommonRtpDecoder>(CodecInvalid, 32 * 1024);
+            // 设置dump目录  [AUTO-TRANSLATED:23c88ace]
+            // Set dump directory
+            GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
+            if (!dump_dir.empty()) {
+                auto save_path = File::absolutePath(_media_info.stream + ".mpeg", dump_dir);
+                _save_file_video.reset(File::create_file(save_path.data(), "wb"), [](FILE *fp) {
+                    if (fp) {
+                        fclose(fp);
+                    }
+                });
+            }
+        } while (false);
+
+        // 设置frame回调  [AUTO-TRANSLATED:dec7590f]
+        // Set frame callback
+        _rtp_decoder[pt]->addDelegate([this, pt](const Frame::Ptr &frame) {
+            frame->setIndex(pt);
             onRtpDecode(frame);
             return true;
         });
@@ -220,7 +159,7 @@ bool H323Process::inputRtp(bool, const char *data, size_t data_len) {
 }
 
 void H323Process::onRtpDecode(const Frame::Ptr &frame) {
-    if (frame->getCodecId() != CodecInvalid) {
+    switch (frame->getCodecId()) {
         if (frame->getTrackType() == TrackVideo && _save_file_video) {
             fwrite(frame->data(), frame->size(), 1, _save_file_video.get());
         }

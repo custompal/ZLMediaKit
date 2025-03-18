@@ -16,11 +16,39 @@ SrtTransportImp::~SrtTransportImp() {
     // 流量统计事件广播
     GET_CONFIG(uint32_t, iFlowThreshold, General::kFlowThreshold);
     if (_total_bytes >= iFlowThreshold * 1024) {
-        NoticeCenter::Instance().emitEvent(
-            Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, !_is_pusher,
-            static_cast<SockInfo &>(*this));
+        try {
+            NOTICE_EMIT(BroadcastFlowReportArgs, Broadcast::kBroadcastFlowReport, _media_info, _total_bytes, duration, !_is_pusher, *this);
+        } catch (std::exception &ex) {
+            WarnL << "Exception occurred: " << ex.what();
+        }
     }
 }
+
+
+SrtTransport::Ptr querySrtTransport(uint8_t *data, size_t size, const EventPoller::Ptr& poller) {
+    if (DataPacket::isDataPacket(data, size)) {
+        uint32_t socket_id = DataPacket::getSocketID(data, size);
+        return SrtTransportManager::Instance().getItem(socket_id);
+    }
+
+    if (HandshakePacket::isHandshakePacket(data, size)) {
+        auto type = HandshakePacket::getHandshakeType(data, size);
+        if (type == HandshakePacket::HS_TYPE_INDUCTION) {
+            // 握手第一阶段
+            return poller ? std::make_shared<SrtTransportImp>(poller) : nullptr;
+        }
+
+        if (type == HandshakePacket::HS_TYPE_CONCLUSION) {
+            // 握手第二阶段
+            uint32_t sync_cookie = HandshakePacket::getSynCookie(data, size);
+            return SrtTransportManager::Instance().getHandshakeItem(sync_cookie);
+        }
+    }
+
+    uint32_t socket_id = ControlPacket::getSocketID(data, size);
+    return SrtTransportManager::Instance().getItem(socket_id);
+}
+
 
 void SrtTransportImp::onHandShakeFinished(std::string &streamid, struct sockaddr_storage *addr) {
     SrtTransport::onHandShakeFinished(streamid,addr);
@@ -35,8 +63,8 @@ void SrtTransportImp::onHandShakeFinished(std::string &streamid, struct sockaddr
         return;
     }
 
-    auto params = Parser::parseArgs(_media_info._param_strs);
-    if (params["m"] == "publish") {
+    auto kv = Parser::parseArgs(_media_info.params);
+    if (kv["m"] == "publish") {
         _is_pusher = true;
         _decoder = DecoderImp::createDecoder(DecoderImp::decoder_ts, this);
         emitOnPublish();
@@ -52,7 +80,7 @@ bool SrtTransportImp::parseStreamid(std::string &streamid) {
     if (!toolkit::start_with(streamid, "#!::")) {
         return false;
     }
-    _media_info._schema = SRT_SCHEMA;
+    _media_info.schema = "srt";
 
     std::string real_streamid = streamid.substr(4);
     std::string vhost, app, stream_name;
@@ -70,10 +98,10 @@ bool SrtTransportImp::parseStreamid(std::string &streamid) {
             app = tmps[0];
             stream_name = tmps[1];
         } else {
-            if (_media_info._param_strs.empty()) {
-                _media_info._param_strs = it.first + "=" + it.second;
+            if (_media_info.params.empty()) {
+                _media_info.params = it.first + "=" + it.second;
             } else {
-                _media_info._param_strs += "&" + it.first + "=" + it.second;
+                _media_info.params += "&" + it.first + "=" + it.second;
             }
         }
     }
@@ -82,15 +110,16 @@ bool SrtTransportImp::parseStreamid(std::string &streamid) {
     }
 
     if (vhost != "") {
-        _media_info._vhost = vhost;
+        _media_info.vhost = vhost;
     } else {
-        _media_info._vhost = DEFAULT_VHOST;
+        _media_info.vhost = DEFAULT_VHOST;
     }
 
-    _media_info._app = app;
-    _media_info._streamid = stream_name;
+    _media_info.app = app;
+    _media_info.stream = stream_name;
+    _media_info.full_url = _media_info.getUrl() + "?" + _media_info.params;
 
-    TraceL << " mediainfo=" << _media_info.shortUrl() << " params=" << _media_info._param_strs;
+    TraceL << " mediainfo=" << _media_info.shortUrl() << " params=" << _media_info.params;
 
     return true;
 }
@@ -136,7 +165,7 @@ mediakit::MediaOriginType SrtTransportImp::getOriginType(mediakit::MediaSource &
 
 // 获取媒体源url或者文件路径
 std::string SrtTransportImp::getOriginUrl(mediakit::MediaSource &sender) const {
-    return _media_info._full_url;
+    return _media_info.full_url;
 }
 
 // 获取媒体源客户端相关信息
@@ -159,13 +188,11 @@ void SrtTransportImp::emitOnPublish() {
             if (err.empty()) {
                 auto &on_create_media_muxer = getOnCreateMediaMuxer();
                 if (on_create_media_muxer) {
-                    strong_self->_muxer = on_create_media_muxer(
-                        strong_self->_media_info._vhost, strong_self->_media_info._app,
-                        strong_self->_media_info._streamid, 0.0f, option);
+                    strong_self->_muxer = on_create_media_muxer(strong_self->_media_info,0.0f,
+                                                                option);
                 } else {
-                    strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(
-                        strong_self->_media_info._vhost, strong_self->_media_info._app,
-                        strong_self->_media_info._streamid, 0.0f, option);
+                    strong_self->_muxer = std::make_shared<MultiMediaSourceMuxer>(strong_self->_media_info,0.0f,
+                                                                                  option);
                 }
                 strong_self->_muxer->setMediaListener(strong_self);
                 strong_self->doCachedFunc();
@@ -178,9 +205,7 @@ void SrtTransportImp::emitOnPublish() {
     };
 
     // 触发推流鉴权事件
-    auto flag = NoticeCenter::Instance().emitEvent(
-        Broadcast::kBroadcastMediaPublish, MediaOriginType::srt_push, _media_info, invoker,
-        static_cast<SockInfo &>(*this));
+    auto flag = NOTICE_EMIT(BroadcastMediaPublishArgs, Broadcast::kBroadcastMediaPublish, MediaOriginType::srt_push, _media_info, invoker, *this);
     if (!flag) {
         // 该事件无人监听,默认不鉴权
         invoker("", ProtocolOption());
@@ -203,8 +228,7 @@ void SrtTransportImp::emitOnPlay() {
         });
     };
 
-    auto flag = NoticeCenter::Instance().emitEvent(
-        Broadcast::kBroadcastMediaPlayed, _media_info, invoker, static_cast<SockInfo &>(*this));
+    auto flag = NOTICE_EMIT(BroadcastMediaPlayedArgs, Broadcast::kBroadcastMediaPlayed, _media_info, invoker, *this);
     if (!flag) {
         doPlay();
     }
@@ -213,7 +237,7 @@ void SrtTransportImp::emitOnPlay() {
 void SrtTransportImp::doPlay() {
     // 异步查找直播流
     MediaInfo info = _media_info;
-    info._schema = TS_SCHEMA;
+    info.schema = TS_SCHEMA;
     std::weak_ptr<SrtTransportImp> weak_self = static_pointer_cast<SrtTransportImp>(shared_from_this());
     MediaSource::findAsync(info, getSession(), [weak_self](const MediaSource::Ptr &src) {
         auto strong_self = weak_self.lock();
@@ -233,7 +257,11 @@ void SrtTransportImp::doPlay() {
             ts_src->pause(false);
             strong_self->_ts_reader = ts_src->getRing()->attach(strong_self->getPoller());
             weak_ptr<Session> weak_session = strong_self->getSession();
-            strong_self->_ts_reader->setGetInfoCB([weak_session]() { return weak_session.lock(); });
+            strong_self->_ts_reader->setGetInfoCB([weak_session]() {
+                Any ret;
+                ret.set(static_pointer_cast<SockInfo>(weak_session.lock()));
+                return ret;
+            });
             strong_self->_ts_reader->setDetachCB([weak_self]() {
                 auto strong_self = weak_self.lock();
                 if (!strong_self) {
@@ -287,23 +315,12 @@ uint16_t SrtTransportImp::get_local_port() {
 }
 
 std::string SrtTransportImp::getIdentifier() const {
-    return _media_info._streamid;
+    return _media_info.stream;
 }
 
 bool SrtTransportImp::inputFrame(const Frame::Ptr &frame) {
     if (_muxer) {
-        //TraceL<<"before type "<<frame->getCodecName()<<" dts "<<frame->dts()<<" pts "<<frame->pts();
-        auto frame_tmp = std::make_shared<FrameStamp>(frame, _type_to_stamp[frame->getTrackType()],false);
-        if(_type_to_stamp.size()>1){
-            // 有音视频，检查是否时间戳是否差距过大
-            auto diff = _type_to_stamp[TrackType::TrackVideo].getRelativeStamp() - _type_to_stamp[TrackType::TrackAudio].getRelativeStamp();
-            if(std::abs(diff) > 5000){
-                // 超过5s，应该同步 TODO
-                WarnL << _media_info._full_url<<" video or audio not sync : "<<diff;
-            }
-        }
-        //TraceL<<"after type "<<frame_tmp->getCodecName()<<" dts "<<frame_tmp->dts()<<" pts "<<frame_tmp->pts();
-        return _muxer->inputFrame(frame_tmp);
+        return _muxer->inputFrame(frame);
     }
     if (_cached_func.size() > 200) {
         WarnL << "cached frame of track(" << frame->getCodecName() << ") is too much, now dropped";
@@ -311,17 +328,11 @@ bool SrtTransportImp::inputFrame(const Frame::Ptr &frame) {
     }
     auto frame_cached = Frame::getCacheAbleFrame(frame);
     lock_guard<recursive_mutex> lck(_func_mtx);
-    _cached_func.emplace_back([this, frame_cached]() { 
-        //TraceL<<"before type "<<frame_cached->getCodecName()<<" dts "<<frame_cached->dts()<<" pts "<<frame_cached->pts();
-        auto frame_tmp = std::make_shared<FrameStamp>(frame_cached, _type_to_stamp[frame_cached->getTrackType()],false);
-        //TraceL<<"after type "<<frame_tmp->getCodecName()<<" dts "<<frame_tmp->dts()<<" pts "<<frame_tmp->pts();
-        _muxer->inputFrame(frame_tmp);
-    });
+    _cached_func.emplace_back([this, frame_cached]() { _muxer->inputFrame(frame_cached); });
     return true;
 }
 
 bool SrtTransportImp::addTrack(const Track::Ptr &track) {
-    _type_to_stamp.emplace(track->getTrackType(),Stamp());
     if (_muxer) {
         return _muxer->addTrack(track);
     }
@@ -337,9 +348,6 @@ void SrtTransportImp::addTrackCompleted() {
     } else {
         lock_guard<recursive_mutex> lck(_func_mtx);
         _cached_func.emplace_back([this]() { _muxer->addTrackCompleted(); });
-    }
-    if(_type_to_stamp.size() >1){
-        _type_to_stamp[TrackType::TrackAudio].syncTo(_type_to_stamp[TrackType::TrackVideo]);
     }
 }
 
@@ -367,6 +375,11 @@ float SrtTransportImp::getTimeOutSec() {
         return 5.0;
     }
     return timeOutSec;
+}
+
+std::string SrtTransportImp::getPassphrase() {
+    GET_CONFIG(string, passphrase, kPassPhrase);
+    return passphrase;
 }
 
 int SrtTransportImp::getPktBufSize() {
