@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -16,31 +16,29 @@ using namespace std;
 using namespace toolkit;
 using namespace mediakit;
 
-class MediaHelper : public MediaSourceEvent , public std::enable_shared_from_this<MediaHelper> {
+class MediaHelper: public MediaSourceEvent, public std::enable_shared_from_this<MediaHelper> {
 public:
     using Ptr = std::shared_ptr<MediaHelper>;
     MediaHelper(const char *vhost, const char *app, const char *stream, float duration, const ProtocolOption &option) {
         _poller = EventPollerPool::Instance().getPoller();
-        // 在poller线程中创建DevChannel(MultiMediaSourceMuxer)对象，确保严格的线程安全限制
-        _poller->sync([&]() { _channel = std::make_shared<DevChannel>(vhost, app, stream, duration, option); });
+        // 在poller线程中创建DevChannel(MultiMediaSourceMuxer)对象，确保严格的线程安全限制  [AUTO-TRANSLATED:d5063d7a]
+        // Create a DevChannel (MultiMediaSourceMuxer) object in the poller thread to ensure strict thread safety restrictions
+        auto tuple = MediaTuple{vhost, app, stream};
+        _poller->sync([&]() { _channel = std::make_shared<DevChannel>(tuple, duration, option); });
     }
 
     ~MediaHelper() = default;
 
-    void attachEvent(){
-        _channel->setMediaListener(shared_from_this());
-    }
+    void attachEvent() { _channel->setMediaListener(shared_from_this()); }
 
-    DevChannel::Ptr &getChannel(){
-        return _channel;
-    }
+    DevChannel::Ptr &getChannel() { return _channel; }
 
-    void setOnClose(on_mk_media_close cb, std::shared_ptr<void> user_data){
+    void setOnClose(on_mk_media_close cb, std::shared_ptr<void> user_data) {
         _on_close = cb;
         _on_close_data = std::move(user_data);
     }
 
-    void setOnSeek(on_mk_media_seek cb, std::shared_ptr<void> user_data){
+    void setOnSeek(on_mk_media_seek cb, std::shared_ptr<void> user_data) {
         _on_seek = cb;
         _on_seek_data = std::move(user_data);
     }
@@ -55,20 +53,23 @@ public:
         _on_speed_data = std::move(user_data);
     }
 
-    void setOnRegist(on_mk_media_source_regist cb, std::shared_ptr<void> user_data){
+    void setOnRegist(on_mk_media_source_regist cb, std::shared_ptr<void> user_data) {
         _on_regist = cb;
         _on_regist_data = std::move(user_data);
     }
 
 protected:
-    // 通知其停止推流
+    // 通知其停止推流  [AUTO-TRANSLATED:d69d10d8]
+    // Notify it to stop streaming
     bool close(MediaSource &sender) override {
         if (!_on_close) {
-            //未设置回调，没法关闭
+            // 未设置回调，没法关闭  [AUTO-TRANSLATED:2c1423fe]
+            // No callback is set, so it cannot be closed
             WarnL << "请使用mk_media_set_on_close函数设置回调函数!";
             return false;
         }
-        //请在回调中调用mk_media_release函数释放资源,否则MediaSource::close()操作不会生效
+        // 请在回调中调用mk_media_release函数释放资源,否则MediaSource::close()操作不会生效  [AUTO-TRANSLATED:da067eb0]
+        // Please call the mk_media_release function to release resources in the callback, otherwise the MediaSource::close() operation will not take effect
         _on_close(_on_close_data.get());
         WarnL << "close media: " << sender.getUrl();
         return true;
@@ -81,7 +82,8 @@ protected:
         return _on_seek(_on_seek_data.get(), stamp);
     }
 
-    // 通知暂停或恢复
+    // 通知暂停或恢复  [AUTO-TRANSLATED:ee3c219f]
+    // Notify pause or resume
     bool pause(MediaSource &sender, bool pause) override {
         if (!_on_pause) {
             return false;
@@ -89,7 +91,8 @@ protected:
         return _on_pause(_on_pause_data.get(), pause);
     }
 
-    //通知倍数播放
+    // 通知倍数播放  [AUTO-TRANSLATED:12e66e3f]
+    // Notify playback speed
     bool speed(MediaSource &sender, float speed) override {
         if (!_on_speed) {
             return false;
@@ -97,15 +100,13 @@ protected:
         return _on_speed(_on_speed_data.get(), speed);
     }
 
-    void onRegist(MediaSource &sender, bool regist) override{
+    void onRegist(MediaSource &sender, bool regist) override {
         if (_on_regist) {
             _on_regist(_on_regist_data.get(), (mk_media_source)&sender, regist);
         }
     }
 
-    toolkit::EventPoller::Ptr getOwnerPoller(MediaSource &sender) {
-        return _poller;
-    }
+    toolkit::EventPoller::Ptr getOwnerPoller(MediaSource &sender) override { return _poller; }
 
 private:
     EventPoller::Ptr _poller;
@@ -122,7 +123,7 @@ private:
     std::shared_ptr<void> _on_regist_data;
 };
 
-API_EXPORT void API_CALL mk_media_set_on_close(mk_media ctx, on_mk_media_close cb, void *user_data){
+API_EXPORT void API_CALL mk_media_set_on_close(mk_media ctx, on_mk_media_close cb, void *user_data) {
     mk_media_set_on_close2(ctx, cb, user_data, nullptr);
 }
 
@@ -159,14 +160,14 @@ API_EXPORT void API_CALL mk_media_set_on_speed(mk_media ctx, on_mk_media_speed c
     mk_media_set_on_speed2(ctx, cb, user_data, nullptr);
 }
 
-API_EXPORT void API_CALL mk_media_set_on_speed2(mk_media ctx, on_mk_media_speed cb, void *user_data, on_user_data_free user_data_free){
+API_EXPORT void API_CALL mk_media_set_on_speed2(mk_media ctx, on_mk_media_speed cb, void *user_data, on_user_data_free user_data_free) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     std::shared_ptr<void> ptr(user_data, user_data_free ? user_data_free : [](void *) {});
     (*obj)->setOnSpeed(cb, std::move(ptr));
 }
 
-API_EXPORT void API_CALL mk_media_set_on_regist(mk_media ctx, on_mk_media_source_regist cb, void *user_data){
+API_EXPORT void API_CALL mk_media_set_on_regist(mk_media ctx, on_mk_media_source_regist cb, void *user_data) {
     mk_media_set_on_regist2(ctx, cb, user_data, nullptr);
 }
 
@@ -177,7 +178,7 @@ API_EXPORT void API_CALL mk_media_set_on_regist2(mk_media ctx, on_mk_media_sourc
     (*obj)->setOnRegist(cb, std::move(ptr));
 }
 
-API_EXPORT int API_CALL mk_media_total_reader_count(mk_media ctx){
+API_EXPORT int API_CALL mk_media_total_reader_count(mk_media ctx) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     return (*obj)->getChannel()->totalReaderCount();
@@ -209,7 +210,7 @@ API_EXPORT void API_CALL mk_media_release(mk_media ctx) {
     delete obj;
 }
 
-API_EXPORT int API_CALL mk_media_init_video(mk_media ctx, int codec_id, int width, int height, float fps, int bit_rate){
+API_EXPORT int API_CALL mk_media_init_video(mk_media ctx, int codec_id, int width, int height, float fps, int bit_rate) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     VideoInfo info;
@@ -221,7 +222,7 @@ API_EXPORT int API_CALL mk_media_init_video(mk_media ctx, int codec_id, int widt
     return (*obj)->getChannel()->initVideo(info);
 }
 
-API_EXPORT int API_CALL mk_media_init_audio(mk_media ctx, int codec_id, int sample_rate, int channels, int sample_bit){
+API_EXPORT int API_CALL mk_media_init_audio(mk_media ctx, int codec_id, int sample_rate, int channels, int sample_bit) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     AudioInfo info;
@@ -232,19 +233,19 @@ API_EXPORT int API_CALL mk_media_init_audio(mk_media ctx, int codec_id, int samp
     return (*obj)->getChannel()->initAudio(info);
 }
 
-API_EXPORT void API_CALL mk_media_init_track(mk_media ctx, mk_track track){
+API_EXPORT void API_CALL mk_media_init_track(mk_media ctx, mk_track track) {
     assert(ctx && track);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     (*obj)->getChannel()->addTrack(*((Track::Ptr *) track));
 }
 
-API_EXPORT void API_CALL mk_media_init_complete(mk_media ctx){
+API_EXPORT void API_CALL mk_media_init_complete(mk_media ctx) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     (*obj)->getChannel()->addTrackCompleted();
 }
 
-API_EXPORT int API_CALL mk_media_input_frame(mk_media ctx, mk_frame frame){
+API_EXPORT int API_CALL mk_media_input_frame(mk_media ctx, mk_frame frame) {
     assert(ctx && frame);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     return (*obj)->getChannel()->inputFrame(*((Frame::Ptr *) frame));
@@ -269,28 +270,29 @@ API_EXPORT void API_CALL mk_media_input_yuv(mk_media ctx, const char *yuv[3], in
 }
 
 API_EXPORT int API_CALL mk_media_input_aac(mk_media ctx, const void *data, int len, uint64_t dts, void *adts) {
-    assert(ctx && data && len > 0 && adts);
+    assert(ctx && data && len > 0);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *) ctx;
     return (*obj)->getChannel()->inputAAC((const char *) data, len, dts, (char *) adts);
 }
 
-API_EXPORT int API_CALL mk_media_input_pcm(mk_media ctx, void *data , int len, uint64_t pts){
+API_EXPORT int API_CALL mk_media_input_pcm(mk_media ctx, void *data, int len, uint64_t pts) {
     assert(ctx && data && len > 0);
     MediaHelper::Ptr* obj = (MediaHelper::Ptr*) ctx;
     return (*obj)->getChannel()->inputPCM((char*)data, len, pts);
 }
 
-API_EXPORT int API_CALL mk_media_input_audio(mk_media ctx, const void* data, int len, uint64_t dts){
+API_EXPORT int API_CALL mk_media_input_audio(mk_media ctx, const void *data, int len, uint64_t dts) {
     assert(ctx && data && len > 0);
     MediaHelper::Ptr* obj = (MediaHelper::Ptr*) ctx;
     return (*obj)->getChannel()->inputAudio((const char*)data, len, dts);
 }
 
-API_EXPORT void API_CALL mk_media_start_send_rtp(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int is_udp, on_mk_media_send_rtp_result cb, void *user_data) {
-    mk_media_start_send_rtp2(ctx, dst_url, dst_port, ssrc, is_udp, cb, user_data, nullptr);
+API_EXPORT void API_CALL mk_media_start_send_rtp(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, on_mk_media_send_rtp_result cb, void *user_data) {
+    mk_media_start_send_rtp2(ctx, dst_url, dst_port, ssrc, con_type, cb, user_data, nullptr);
 }
 
-API_EXPORT void API_CALL mk_media_start_send_rtp2(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int is_udp, on_mk_media_send_rtp_result cb, void *user_data, on_user_data_free user_data_free){
+API_EXPORT void API_CALL mk_media_start_send_rtp2(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, on_mk_media_send_rtp_result cb, void *user_data,
+    on_user_data_free user_data_free) {
     assert(ctx && dst_url && ssrc);
     MediaHelper::Ptr* obj = (MediaHelper::Ptr*) ctx;
 
@@ -298,9 +300,11 @@ API_EXPORT void API_CALL mk_media_start_send_rtp2(mk_media ctx, const char *dst_
     args.dst_url = dst_url;
     args.dst_port = dst_port;
     args.ssrc = ssrc;
-    args.is_udp = is_udp;
+    args.close_delay_ms = 30 * 1000;
+    args.con_type = (mediakit::MediaSourceEvent::SendRtpArgs::ConType)con_type;
 
-    // sender参数无用
+    // sender参数无用  [AUTO-TRANSLATED:21590ae5]
+    // The sender parameter is useless
     auto ref = *obj;
     std::shared_ptr<void> ptr(user_data, user_data_free ? user_data_free : [](void *) {});
     (*obj)->getChannel()->getOwnerPoller(MediaSource::NullMediaSource())->async([args, ref, cb, ptr]() {
@@ -312,10 +316,51 @@ API_EXPORT void API_CALL mk_media_start_send_rtp2(mk_media ctx, const char *dst_
     });
 }
 
-API_EXPORT void API_CALL mk_media_stop_send_rtp(mk_media ctx, const char *ssrc){
+API_EXPORT void API_CALL mk_media_start_send_rtp3(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, mk_ini options, on_mk_media_send_rtp_result cb, void *user_data) {
+     mk_media_start_send_rtp4(ctx, dst_url, dst_port, ssrc, con_type,options, cb, user_data, nullptr);
+}
+
+API_EXPORT void API_CALL mk_media_start_send_rtp4(mk_media ctx, const char *dst_url, uint16_t dst_port, const char *ssrc, int con_type, mk_ini options, on_mk_media_send_rtp_result cb, void *user_data,on_user_data_free user_data_free) {
+    assert(ctx && dst_url && ssrc);
+    MediaHelper::Ptr *obj = (MediaHelper::Ptr *)ctx;
+    MediaSourceEvent::SendRtpArgs args;
+    args.dst_url = dst_url;
+    args.dst_port = dst_port;
+    args.ssrc = ssrc;
+    args.con_type = (mediakit::MediaSourceEvent::SendRtpArgs::ConType)con_type;
+    auto ini_ptr = (mINI *)options;
+    args.src_port = (*ini_ptr)["src_port"].empty() ? 0 : (*ini_ptr)["src_port"].as<int>();
+    args.ssrc_multi_send = (*ini_ptr)["ssrc_multi_send"].empty() ? false : (*ini_ptr)["ssrc_multi_send"].as<bool>();
+    args.pt = (*ini_ptr)["pt"].empty() ? 96 : (*ini_ptr)["pt"].as<int>();
+    args.data_type = (*ini_ptr)["data_type"].empty() ? MediaSourceEvent::SendRtpArgs::DataType::kRtpPS
+                                                     : (MediaSourceEvent::SendRtpArgs::DataType)(*ini_ptr)["data_type"].as<int>();
+    args.only_audio = (*ini_ptr)["only_audio"].empty() ? false : (*ini_ptr)["only_audio"].as<bool>();
+    args.udp_rtcp_timeout = (*ini_ptr)["udp_rtcp_timeout"].empty() ? false : (*ini_ptr)["udp_rtcp_timeout"].as<bool>();
+    args.recv_stream_id =(*ini_ptr)["recv_stream_id"];
+    args.recv_stream_app =obj->get()->getChannel()->getMediaTuple().app.c_str();
+    args.recv_stream_vhost = obj->get()->getChannel()->getMediaTuple().vhost.c_str();
+    args.close_delay_ms = (*ini_ptr)["close_delay_ms"].empty() ? 30000 : (*ini_ptr)["close_delay_ms"].as<int>();
+    args.rtcp_timeout_ms = (*ini_ptr)["rtcp_timeout_ms"].empty() ? 30000 : (*ini_ptr)["rtcp_timeout_ms"].as<int>();
+    args.rtcp_send_interval_ms = (*ini_ptr)["rtcp_send_interval_ms"].empty() ? 5000 : (*ini_ptr)["rtcp_send_interval_ms"].as<int>();
+    // sender参数无用  [AUTO-TRANSLATED:21590ae5]
+    // The sender parameter is useless
+    auto ref = *obj;
+    std::shared_ptr<void> ptr(
+        user_data, user_data_free ? user_data_free : [](void *) {});
+    (*obj)->getChannel()->getOwnerPoller(MediaSource::NullMediaSource())->async([args, ref, cb, ptr]() {
+        ref->getChannel()->startSendRtp(MediaSource::NullMediaSource(), args, [cb, ptr](uint16_t local_port, const SockException &ex) {
+            if (cb) {
+                cb(ptr.get(), local_port, ex.getErrCode(), ex.what());
+            }
+        });
+    });
+}
+
+API_EXPORT void API_CALL mk_media_stop_send_rtp(mk_media ctx, const char *ssrc) {
     assert(ctx);
     MediaHelper::Ptr *obj = (MediaHelper::Ptr *)ctx;
-    // sender参数无用
+    // sender参数无用  [AUTO-TRANSLATED:21590ae5]
+    // The sender parameter is useless
     auto ref = *obj;
     string ssrc_str = ssrc ? ssrc : "";
     (*obj)->getChannel()->getOwnerPoller(MediaSource::NullMediaSource())->async([ref, ssrc_str]() {

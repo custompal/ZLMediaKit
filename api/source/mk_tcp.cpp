@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -112,10 +112,10 @@ API_EXPORT uint16_t API_CALL mk_sock_info_local_port(const mk_sock_info ctx){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
-API_EXPORT mk_sock_info API_CALL mk_tcp_session_get_sock_info(const mk_tcp_session ctx){
+API_EXPORT mk_sock_info API_CALL mk_tcp_session_get_sock_info(const mk_tcp_session ctx) {
     assert(ctx);
     SessionForC *session = (SessionForC *)ctx;
-    return (mk_sock_info)session;
+    return reinterpret_cast<mk_sock_info>(static_cast<SockInfo *>(session));
 }
 
 API_EXPORT void API_CALL mk_tcp_session_shutdown(const mk_tcp_session ctx,int err,const char *err_msg){
@@ -139,7 +139,7 @@ API_EXPORT void API_CALL mk_tcp_session_send(const mk_tcp_session ctx, const cha
 API_EXPORT void API_CALL mk_tcp_session_send_buffer_safe(const mk_tcp_session ctx, mk_buffer buffer) {
     assert(ctx && buffer);
     try {
-        std::weak_ptr<Session> weak_session = ((SessionForC *) ctx)->shared_from_this();
+        std::weak_ptr<SocketHelper> weak_session = ((SessionForC *) ctx)->shared_from_this();
         auto ref = mk_buffer_ref(buffer);
         ((SessionForC *) ctx)->async([weak_session, ref]() {
             auto session_session = weak_session.lock();
@@ -149,13 +149,13 @@ API_EXPORT void API_CALL mk_tcp_session_send_buffer_safe(const mk_tcp_session ct
             mk_buffer_unref(ref);
         });
     } catch (std::exception &ex) {
-        WarnL << "can not got the strong pionter of this mk_tcp_session:" << ex.what();
+        WarnL << "can not got the strong pointer of this mk_tcp_session:" << ex.what();
     }
 }
 
 API_EXPORT mk_tcp_session_ref API_CALL mk_tcp_session_ref_from(const mk_tcp_session ctx) {
     auto ref = ((SessionForC *) ctx)->shared_from_this();
-    return (mk_tcp_session_ref)new std::shared_ptr<SessionForC>(std::dynamic_pointer_cast<SessionForC>(ref));
+    return (mk_tcp_session_ref)new std::shared_ptr<SessionForC>(std::static_pointer_cast<SessionForC>(ref));
 }
 
 API_EXPORT void mk_tcp_session_ref_release(const mk_tcp_session_ref ref) {
@@ -242,11 +242,13 @@ API_EXPORT uint16_t API_CALL mk_tcp_server_start(uint16_t port, mk_tcp_type type
                 s_tcp_server[type]->start<SessionWithSSL<SessionForC> >(port);
                 break;
             case mk_type_ws:
-                //此处你也可以修改WebSocketHeader::BINARY
+                // 此处你也可以修改WebSocketHeader::BINARY  [AUTO-TRANSLATED:706abaab]
+                // You can also modify WebSocketHeader::BINARY here
                 s_tcp_server[type]->start<WebSocketSession<SessionForC, HttpSession, WebSocketHeader::TEXT> >(port);
                 break;
             case mk_type_wss:
-                //此处你也可以修改WebSocketHeader::BINARY
+                // 此处你也可以修改WebSocketHeader::BINARY  [AUTO-TRANSLATED:706abaab]
+                // You can also modify WebSocketHeader::BINARY here
                 s_tcp_server[type]->start<WebSocketSession<SessionForC, HttpsSession, WebSocketHeader::TEXT> >(port);
                 break;
             default:
@@ -271,7 +273,7 @@ void TcpClientForC::onRecv(const Buffer::Ptr &pBuf) {
     }
 }
 
-void TcpClientForC::onErr(const SockException &ex) {
+void TcpClientForC::onError(const SockException &ex) {
     if(_events.on_mk_tcp_client_disconnect){
         _events.on_mk_tcp_client_disconnect(_client,ex.getErrCode(),ex.what());
     }
@@ -307,10 +309,12 @@ TcpClientForC::Ptr *mk_tcp_client_create_l(mk_tcp_client_events *events, mk_tcp_
         case mk_type_ssl:
             return (TcpClientForC::Ptr *)new std::shared_ptr<SessionWithSSL<TcpClientForC> >(new SessionWithSSL<TcpClientForC>(events));
         case mk_type_ws:
-            //此处你也可以修改WebSocketHeader::BINARY
+            // 此处你也可以修改WebSocketHeader::BINARY  [AUTO-TRANSLATED:706abaab]
+            // You can also modify WebSocketHeader::BINARY here
             return (TcpClientForC::Ptr *)new std::shared_ptr<WebSocketClient<TcpClientForC, WebSocketHeader::TEXT, false> >(new WebSocketClient<TcpClientForC, WebSocketHeader::TEXT, false>(events));
         case mk_type_wss:
-            //此处你也可以修改WebSocketHeader::BINARY
+            // 此处你也可以修改WebSocketHeader::BINARY  [AUTO-TRANSLATED:706abaab]
+            // You can also modify WebSocketHeader::BINARY
             return (TcpClientForC::Ptr *)new std::shared_ptr<WebSocketClient<TcpClientForC, WebSocketHeader::TEXT, true> >(new WebSocketClient<TcpClientForC, WebSocketHeader::TEXT, true>(events));
         default:
             return nullptr;
@@ -320,7 +324,7 @@ TcpClientForC::Ptr *mk_tcp_client_create_l(mk_tcp_client_events *events, mk_tcp_
 API_EXPORT mk_sock_info API_CALL mk_tcp_client_get_sock_info(const mk_tcp_client ctx){
     assert(ctx);
     TcpClientForC::Ptr *client = (TcpClientForC::Ptr *)ctx;
-    return (mk_sock_info)(SockInfo *)client->get();
+    return reinterpret_cast<mk_sock_info>(static_cast<SockInfo *>(client->get()));
 }
 
 API_EXPORT mk_tcp_client API_CALL mk_tcp_client_create(mk_tcp_client_events *events, mk_tcp_type type){

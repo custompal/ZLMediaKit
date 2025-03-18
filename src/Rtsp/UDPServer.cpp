@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -33,7 +33,8 @@ Socket::Ptr UDPServer::getSock(SocketHelper &helper, const char* local_ip, int i
     if (it == _udp_sock_map.end()) {
         Socket::Ptr sock = helper.createSocket();
         if (!sock->bindUdpSock(local_port, local_ip)) {
-            //分配失败
+            // 分配失败  [AUTO-TRANSLATED:a6c6a6e6]
+            // Allocation failed
             return nullptr;
         }
 
@@ -82,10 +83,12 @@ void UDPServer::onRecv(int interleaved, const Buffer::Ptr &buf, struct sockaddr*
         return;
     }
     auto &ref = it0->second;
-    for (auto it1 = ref.begin(); it1 != ref.end(); ++it1) {
+    for (auto it1 = ref.begin(); it1 != ref.end();) {
         auto &func = it1->second;
         if (!func(interleaved, buf, peer_addr)) {
             it1 = ref.erase(it1);
+        } else {
+            ++it1;
         }
     }
     if (ref.size() == 0) {

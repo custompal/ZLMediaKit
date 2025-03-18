@@ -26,13 +26,15 @@
 #  SRTP_INCLUDE_DIRS - the SRTP include directory
 #  SRTP_LIBRARIES - The libraries needed to use SRTP
 
+if(NOT _SRTP_ROOT_PATHS)
 set(_SRTP_ROOT_PATHS
         ${CMAKE_INSTALL_PREFIX}
         )
+endif()
 
 find_path(SRTP_INCLUDE_DIRS
         NAMES srtp2/srtp.h
-        HINTS _SRTP_ROOT_PATHS  ${SRTP_PREFIX}
+        HINTS ${_SRTP_ROOT_PATHS}  ${SRTP_PREFIX}
         PATH_SUFFIXES include
         )
 

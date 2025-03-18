@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -22,14 +22,16 @@ public:
         _parser.reset(new toolkit::OptionParser([](const std::shared_ptr<std::ostream> &stream, toolkit::mINI &ini) {
             MediaSource::for_each_media([&](const MediaSource::Ptr &media) {
                 if (ini.find("list") != ini.end()) {
-                    //列出源
+                    // 列出源  [AUTO-TRANSLATED:cee6cf16]
+                    // List sources
                     (*stream) << "\t" << media->getUrl() << "\r\n";
                     return;
                 }
 
                 toolkit::EventPollerPool::Instance().getPoller()->async([ini, media, stream]() {
                     if (ini.find("kick") != ini.end()) {
-                        //踢出源
+                        // 踢出源  [AUTO-TRANSLATED:67fdbfaa]
+                        // Kick out sources
                         do {
                             if (!media) {
                                 break;
@@ -54,8 +56,6 @@ public:
         (*_parser) << toolkit::Option('a', "app", toolkit::Option::ArgRequired, nullptr, false, "应用名筛选", nullptr);
         (*_parser) << toolkit::Option('s', "stream", toolkit::Option::ArgRequired, nullptr, false, "流id筛选", nullptr);
     }
-
-    virtual ~CMD_media() {}
 
     const char *description() const override {
         return "媒体源相关操作.";

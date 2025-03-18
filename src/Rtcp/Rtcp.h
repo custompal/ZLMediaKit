@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -19,9 +19,7 @@
 
 namespace mediakit {
 
-#if defined(_WIN32)
 #pragma pack(push, 1)
-#endif // defined(_WIN32)
 
 // http://www.networksorcery.com/enp/protocol/rtcp.htm
 #define RTCP_PT_MAP(XX)                                                                                                \
@@ -235,7 +233,7 @@ private:
      */
     void net2Host(size_t size);
 
-} PACKED;
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -272,7 +270,7 @@ private:
      * 网络字节序转换为主机字节序
      */
     void net2Host();
-} PACKED;
+};
 
 /*
  * 6.4.1 SR: Sender Report RTCP Packet
@@ -371,7 +369,7 @@ private:
      * @param size 字节长度，防止内存越界
      */
     void net2Host(size_t size);
-} PACKED;
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -441,7 +439,7 @@ private:
      */
     std::string dumpString() const;
 
-} PACKED;
+};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -512,7 +510,7 @@ private:
      * 网络字节序转换为主机字节序
      */
     void net2Host();
-} PACKED;
+};
 
 // Source description
 class RtcpSdes : public RtcpHeader {
@@ -548,7 +546,7 @@ private:
      * @param size 字节长度，防止内存越界
      */
     void net2Host(size_t size);
-} PACKED;
+};
 
 // https://tools.ietf.org/html/rfc4585#section-6.1
 // 6.1.   Common Packet Format for Feedback Messages
@@ -624,7 +622,7 @@ private:
 
 private:
     static std::shared_ptr<RtcpFB> create_l(RtcpType type, int fmt, const void *fci, size_t fci_len);
-} PACKED;
+};
 
 // BYE
 /*
@@ -684,7 +682,7 @@ private:
      * @param size 字节长度，防止内存越界
      */
     void net2Host(size_t size);
-} PACKED;
+};
 
 /*
 0                   1                   2                   3
@@ -738,7 +736,7 @@ private:
      */
     void net2Host(size_t size);
 
-} PACKED;
+};
 
 /*
 
@@ -774,10 +772,9 @@ private:
 
     /**
      * 网络字节序转换为主机字节序
-     * @param size 字节长度，防止内存越界
      */
     void net2Host();
-} PACKED;
+};
 
 class RtcpXRDLRR : public RtcpHeader {
 public:
@@ -814,11 +811,108 @@ private:
      */
     void net2Host(size_t size);
 
-} PACKED;
+};
 
-#if defined(_WIN32)
+//  RFC 4585: Feedback format.
+//
+//  Common packet format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |     BT=42     |   reserved    |         block length          |
+//  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+//  Target bitrate item (repeat as many times as necessary).
+//
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |   S   |   T   |                Target Bitrate                 |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  :  ...                                                          :
+//
+//  Spatial Layer (S): 4 bits
+//    Indicates which temporal layer this bitrate concerns.
+//
+//  Temporal Layer (T): 4 bits
+//    Indicates which temporal layer this bitrate concerns.
+//
+//  Target Bitrate: 24 bits
+//    The encoder target bitrate for this layer, in kbps.
+//
+//  As an example of how S and T are intended to be used, VP8 simulcast will
+//  use a separate TargetBitrate message per stream, since they are transmitted
+//  on separate SSRCs, with temporal layers grouped by stream.
+//  If VP9 SVC is used, there will be only one SSRC, so each spatial and
+//  temporal layer combo used shall be specified in the TargetBitrate packet.
+class RtcpXRTargetBitrateItem {
+public:
+    friend class RtcpXRTargetBitrate;
+#if __BYTE_ORDER == __BIG_ENDIAN
+    // Indicates which temporal layer this bitrate concerns.
+    uint32_t spatial_layer : 4;
+    // Indicates which temporal layer this bitrate concerns.
+    uint32_t temporal_layer : 4;
+#else
+    // Indicates which temporal layer this bitrate concerns.
+    uint32_t temporal_layer : 4;
+    // Indicates which temporal layer this bitrate concerns.
+    uint32_t spatial_layer : 4;
+#endif
+    //The encoder target bitrate for this layer, in kbps.
+    uint32_t target_bitrate : 24;
+
+private:
+    /**
+     * 打印字段详情
+     * 使用net2Host转换成主机字节序后才可使用此函数
+     */
+    std::string dumpString() const;
+
+    /**
+     * 网络字节序转换为主机字节序
+     */
+    void net2Host();
+};
+
+
+class RtcpXRTargetBitrate : public RtcpHeader {
+public:
+    friend class RtcpHeader;
+    uint32_t ssrc;
+    uint8_t bt;
+    uint8_t reserved;
+    uint16_t block_length;
+    RtcpXRTargetBitrateItem items;
+
+    /**
+     * 创建RtcpXRTargetBitrate包，只赋值了RtcpHeader部分(网络字节序)
+     * @param item_count RtcpXRTargetBitrateItem对象个数
+     * @return RtcpXRTargetBitrate包
+     */
+    static std::shared_ptr<RtcpXRTargetBitrate> create(size_t item_count);
+
+    /**
+     * 获取RtcpXRTargetBitrateItem对象指针列表
+     * 使用net2Host转换成主机字节序后才可使用此函数
+     */
+    std::vector<RtcpXRTargetBitrateItem *> getItemList();
+
+private:
+    /**
+     * 打印字段详情
+     * 使用net2Host转换成主机字节序后才可使用此函数
+     */
+    std::string dumpString() const;
+
+    /**
+     * 网络字节序转换为主机字节序
+     * @param size 字节长度，防止内存越界
+     */
+    void net2Host(size_t size);
+
+};
+
 #pragma pack(pop)
-#endif // defined(_WIN32)
 
 } // namespace mediakit
 #endif // ZLMEDIAKIT_RTCP_H

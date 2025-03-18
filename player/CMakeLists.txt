@@ -1,6 +1,6 @@
 ﻿# MIT License
 #
-# Copyright (c) 2016-2022 The ZLMediaKit project authors. All Rights Reserved.
+# Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,9 @@ if(PKG_CONFIG_FOUND)
     list(APPEND LINK_LIBRARIES PkgConfig::SDL2)
     message(STATUS "found library: ${SDL2_LIBRARIES}")
   endif()
-else()
+endif()
+
+if(NOT SDL2_FOUND)
   find_package(SDL2 QUIET)
   if(SDL2_FOUND)
     include_directories(SYSTEM ${SDL2_INCLUDE_DIR})

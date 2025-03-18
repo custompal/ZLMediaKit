@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -18,55 +18,56 @@ namespace mediakit{
 
 /**
  * 通用 rtmp解码类
+ * Generic rtmp decoder class
+ 
+ * [AUTO-TRANSLATED:b04614f4]
  */
 class CommonRtmpDecoder : public RtmpCodec {
 public:
     using Ptr = std::shared_ptr<CommonRtmpDecoder>;
 
-    ~CommonRtmpDecoder() override {}
-
     /**
      * 构造函数
-     * @param codec 编码id
+     * Constructor
+     
+     * [AUTO-TRANSLATED:41469869]
      */
-    CommonRtmpDecoder(CodecId codec);
-
-    /**
-     * 返回编码类型ID
-     */
-    CodecId getCodecId() const override;
+    CommonRtmpDecoder(const Track::Ptr &track) : RtmpCodec(track) {}
 
     /**
      * 输入Rtmp并解码
      * @param rtmp Rtmp数据包
+     * Input Rtmp and decode
+     * @param rtmp Rtmp data packet
+     
+     * [AUTO-TRANSLATED:43b1eae8]
      */
     void inputRtmp(const RtmpPacket::Ptr &rtmp) override;
-
-private:
-    void obtainFrame();
-
-private:
-    CodecId _codec;
-    FrameImp::Ptr _frame;
 };
 
 /**
  * 通用 rtmp编码类
+ * Generic rtmp encoder class
+ 
+ * [AUTO-TRANSLATED:4616a2a8]
  */
-class CommonRtmpEncoder : public CommonRtmpDecoder {
+class CommonRtmpEncoder : public RtmpCodec {
 public:
     using Ptr = std::shared_ptr<CommonRtmpEncoder>;
 
-    CommonRtmpEncoder(const Track::Ptr &track);
-    ~CommonRtmpEncoder() override{}
+    CommonRtmpEncoder(const Track::Ptr &track) : RtmpCodec(track) {}
 
     /**
      * 输入帧数据
+     * Input frame data
+     
+     
+     * [AUTO-TRANSLATED:d13bc7f2]
      */
     bool inputFrame(const Frame::Ptr &frame) override;
 
 private:
-    uint8_t _audio_flv_flags = 0;
+    uint8_t _audio_flv_flags { 0 };
 };
 
 }//namespace mediakit

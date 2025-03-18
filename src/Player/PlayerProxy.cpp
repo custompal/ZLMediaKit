@@ -1,50 +1,110 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "Common/config.h"
 #include "PlayerProxy.h"
-#include "Util/mini.h"
+#include "Common/config.h"
+#include "Rtmp/RtmpMediaSource.h"
+#include "Rtmp/RtmpPlayer.h"
+#include "Rtsp/RtspMediaSource.h"
+#include "Rtsp/RtspPlayer.h"
 #include "Util/MD5.h"
 #include "Util/logger.h"
-#include "Extension/AAC.h"
-#include "Rtmp/RtmpMediaSource.h"
-#include "Rtsp/RtspMediaSource.h"
-#include "Rtmp/RtmpPlayer.h"
-#include "Rtsp/RtspPlayer.h"
+#include "Util/mini.h"
 
 using namespace toolkit;
 using namespace std;
 
 namespace mediakit {
 
-PlayerProxy::PlayerProxy(const string &vhost, const string &app, const string &stream_id, const ProtocolOption &option,
-                         int retry_count, const EventPoller::Ptr &poller) : MediaPlayer(poller) , _option(option) {
-    _vhost = vhost;
-    _app = app;
-    _stream_id = stream_id;
+PlayerProxy::PlayerProxy(
+    const MediaTuple &tuple, const ProtocolOption &option, int retry_count,
+    const EventPoller::Ptr &poller, int reconnect_delay_min, int reconnect_delay_max, int reconnect_delay_step)
+    : MediaPlayer(poller), _tuple(tuple), _option(option) {
     _retry_count = retry_count;
-    _on_close = [](const SockException &) {};
+
+    setOnClose(nullptr);
+    setOnConnect(nullptr);
+    setOnDisconnect(nullptr);
+    
+    _reconnect_delay_min = reconnect_delay_min > 0 ? reconnect_delay_min : 2;
+    _reconnect_delay_max = reconnect_delay_max > 0 ? reconnect_delay_max : 60;
+    _reconnect_delay_step = reconnect_delay_step > 0 ? reconnect_delay_step : 3;
+    _live_secs = 0;
+    _live_status = 1;
+    _repull_count = 0;
     (*this)[Client::kWaitTrackReady] = false;
 }
 
-void PlayerProxy::setPlayCallbackOnce(const function<void(const SockException &ex)> &cb) {
-    _on_play = cb;
+void PlayerProxy::setPlayCallbackOnce(function<void(const SockException &ex)> cb) {
+    _on_play = std::move(cb);
 }
 
-void PlayerProxy::setOnClose(const function<void(const SockException &ex)> &cb) {
-    _on_close = cb ? cb : [](const SockException &) {};
+void PlayerProxy::setOnClose(function<void(const SockException &ex)> cb) {
+    _on_close = cb ? std::move(cb) : [](const SockException &) {};
+}
+
+void PlayerProxy::setOnDisconnect(std::function<void()> cb) {
+    _on_disconnect = cb ? std::move(cb) : [] () {};
+}
+
+void PlayerProxy::setOnConnect(std::function<void(const TranslationInfo&)> cb) {
+    _on_connect = cb ? std::move(cb) : [](const TranslationInfo&) {};
+}
+
+void PlayerProxy::setTranslationInfo()
+{
+    _transtalion_info.byte_speed = _media_src ? _media_src->getBytesSpeed() : -1;
+    _transtalion_info.start_time_stamp = _media_src ? _media_src->getCreateStamp() : 0;
+    _transtalion_info.stream_info.clear();
+    auto tracks = _muxer->getTracks();
+    for (auto &track : tracks) {
+        track->update();
+        _transtalion_info.stream_info.emplace_back();
+        auto &back = _transtalion_info.stream_info.back();
+        back.bitrate = track->getBitRate();
+        back.codec_type = track->getTrackType();
+        back.codec_name = track->getCodecName();
+        switch (back.codec_type) {
+            case TrackAudio : {
+                auto audio_track = dynamic_pointer_cast<AudioTrack>(track);
+                back.audio_sample_rate = audio_track->getAudioSampleRate();
+                back.audio_channel = audio_track->getAudioChannel();
+                back.audio_sample_bit = audio_track->getAudioSampleBit();
+                break;
+            }
+            case TrackVideo : {
+                auto video_track = dynamic_pointer_cast<VideoTrack>(track);
+                back.video_width = video_track->getVideoWidth();
+                back.video_height = video_track->getVideoHeight();
+                back.video_fps = video_track->getVideoFps();
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
+static int getMaxTrackSize(const std::string &url) {
+    if (url.find(".m3u8") != std::string::npos || url.find(".ts") != std::string::npos) {
+        // hls和ts协议才开放多track支持  [AUTO-TRANSLATED:6c5f8f04]
+        // Only hls and ts protocols support multiple tracks
+        return 16;
+    }
+    return 2;
 }
 
 void PlayerProxy::play(const string &strUrlTmp) {
+    _option.max_track = getMaxTrackSize(strUrlTmp);
     weak_ptr<PlayerProxy> weakSelf = shared_from_this();
-    std::shared_ptr<int> piFailedCnt(new int(0)); //连续播放失败次数
+    std::shared_ptr<int> piFailedCnt(new int(0)); // 连续播放失败次数
     setOnPlayResult([weakSelf, strUrlTmp, piFailedCnt](const SockException &err) {
         auto strongSelf = weakSelf.lock();
         if (!strongSelf) {
@@ -57,16 +117,27 @@ void PlayerProxy::play(const string &strUrlTmp) {
         }
 
         if (!err) {
-            // 取消定时器,避免hls拉流索引文件因为网络波动失败重连成功后出现循环重试的情况
-           strongSelf->_timer.reset();
-            // 播放成功
-            *piFailedCnt = 0;//连续播放失败次数清0
+            // 取消定时器,避免hls拉流索引文件因为网络波动失败重连成功后出现循环重试的情况  [AUTO-TRANSLATED:91e5f0c8]
+            // Cancel the timer to avoid the situation where the hls stream index file fails to reconnect due to network fluctuations and then retries in a loop after successful reconnection
+            strongSelf->_timer.reset();
+            strongSelf->_live_ticker.resetTime();
+            strongSelf->_live_status = 0;
+            // 播放成功  [AUTO-TRANSLATED:e43f9fb8]
+            // Play successfully
+            *piFailedCnt = 0; // 连续播放失败次数清0
             strongSelf->onPlaySuccess();
+            strongSelf->setTranslationInfo();
+            strongSelf->_on_connect(strongSelf->_transtalion_info);  
+
+            InfoL << "play " << strUrlTmp << " success";
         } else if (*piFailedCnt < strongSelf->_retry_count || strongSelf->_retry_count < 0) {
-            // 播放失败，延时重试播放
+            // 播放失败，延时重试播放  [AUTO-TRANSLATED:d7537c9c]
+            // Play failed, retry playing with delay
+            strongSelf->_on_disconnect();
             strongSelf->rePlay(strUrlTmp, (*piFailedCnt)++);
         } else {
-            //达到了最大重试次数，回调关闭
+            // 达到了最大重试次数，回调关闭  [AUTO-TRANSLATED:610f31f3]
+            // Reached the maximum number of retries, callback to close
             strongSelf->_on_close(err);
         }
     });
@@ -76,7 +147,8 @@ void PlayerProxy::play(const string &strUrlTmp) {
             return;
         }
 
-        //注销直接拉流代理产生的流：#532
+        // 注销直接拉流代理产生的流：#532  [AUTO-TRANSLATED:c6343a3b]
+        // Unregister the stream generated by the direct stream proxy: #532
         strongSelf->setMediaSource(nullptr);
 
         if (strongSelf->_muxer) {
@@ -92,15 +164,33 @@ void PlayerProxy::play(const string &strUrlTmp) {
                 strongSelf->_muxer->resetTracks();
             }
         }
-        //播放异常中断，延时重试播放
+
+        if (*piFailedCnt == 0) {
+            // 第一次重拉更新时长  [AUTO-TRANSLATED:3c414b08]
+            // Update the duration for the first time
+            strongSelf->_live_secs += strongSelf->_live_ticker.elapsedTime() / 1000;
+            strongSelf->_live_ticker.resetTime();
+            TraceL << " live secs " << strongSelf->_live_secs;
+        }
+
+        // 播放异常中断，延时重试播放  [AUTO-TRANSLATED:fee316b2]
+        // Play interrupted abnormally, retry playing with delay
         if (*piFailedCnt < strongSelf->_retry_count || strongSelf->_retry_count < 0) {
+            strongSelf->_repull_count++;
             strongSelf->rePlay(strUrlTmp, (*piFailedCnt)++);
         } else {
-            //达到了最大重试次数，回调关闭
+            // 达到了最大重试次数，回调关闭  [AUTO-TRANSLATED:610f31f3]
+            // Reached the maximum number of retries, callback to close
             strongSelf->_on_close(err);
         }
     });
-    MediaPlayer::play(strUrlTmp);
+    try {
+        MediaPlayer::play(strUrlTmp);
+    } catch (std::exception &ex) {
+        ErrorL << ex.what();
+        onPlayResult(SockException(Err_other, ex.what()));
+        return;
+    }
     _pull_url = strUrlTmp;
     setDirectProxy();
 }
@@ -108,14 +198,19 @@ void PlayerProxy::play(const string &strUrlTmp) {
 void PlayerProxy::setDirectProxy() {
     MediaSource::Ptr mediaSource;
     if (dynamic_pointer_cast<RtspPlayer>(_delegate)) {
-        //rtsp拉流
+        // rtsp拉流  [AUTO-TRANSLATED:189cf691]
+        // Rtsp stream
         GET_CONFIG(bool, directProxy, Rtsp::kDirectProxy);
-        if (directProxy) {
-            mediaSource = std::make_shared<RtspMediaSource>(_vhost, _app, _stream_id);
+        if (directProxy && _option.enable_rtsp) {
+            mediaSource = std::make_shared<RtspMediaSource>(_tuple);
         }
     } else if (dynamic_pointer_cast<RtmpPlayer>(_delegate)) {
-        //rtmp拉流,rtmp强制直接代理
-        mediaSource = std::make_shared<RtmpMediaSource>(_vhost, _app, _stream_id);
+        // rtmp拉流  [AUTO-TRANSLATED:f70a142c]
+        // Rtmp stream
+        GET_CONFIG(bool, directProxy, Rtmp::kDirectProxy);
+        if (directProxy && _option.enable_rtmp) {
+            mediaSource = std::make_shared<RtmpMediaSource>(_tuple);
+        }
     }
     if (mediaSource) {
         setMediaSource(mediaSource);
@@ -124,31 +219,41 @@ void PlayerProxy::setDirectProxy() {
 
 PlayerProxy::~PlayerProxy() {
     _timer.reset();
-    // 避免析构时, 忘记回调api请求
-     if(_on_play) {
-        _on_play(SockException(Err_shutdown, "player proxy close"));
+    // 避免析构时, 忘记回调api请求  [AUTO-TRANSLATED:1ad9ad52]
+    // Avoid forgetting to callback api request when destructing
+    if (_on_play) {
+        try {
+            _on_play(SockException(Err_shutdown, "player proxy close"));
+        } catch (std::exception &ex) {
+            WarnL << "Exception occurred: " << ex.what();
+        }
         _on_play = nullptr;
     }
 }
 
 void PlayerProxy::rePlay(const string &strUrl, int iFailedCnt) {
-    auto iDelay = MAX(2 * 1000, MIN(iFailedCnt * 3000, 60 * 1000));
+    auto iDelay = MAX(_reconnect_delay_min * 1000, MIN(iFailedCnt * _reconnect_delay_step * 1000, _reconnect_delay_max * 1000));
     weak_ptr<PlayerProxy> weakSelf = shared_from_this();
-    _timer = std::make_shared<Timer>(iDelay / 1000.0f, [weakSelf, strUrl, iFailedCnt]() {
-        //播放失败次数越多，则延时越长
-        auto strongPlayer = weakSelf.lock();
-        if (!strongPlayer) {
+    _timer = std::make_shared<Timer>(
+        iDelay / 1000.0f,
+        [weakSelf, strUrl, iFailedCnt]() {
+            // 播放失败次数越多，则延时越长  [AUTO-TRANSLATED:5af39264]
+            // The more times the playback fails, the longer the delay
+            auto strongPlayer = weakSelf.lock();
+            if (!strongPlayer) {
+                return false;
+            }
+            WarnL << "重试播放[" << iFailedCnt << "]:" << strUrl;
+            strongPlayer->MediaPlayer::play(strUrl);
+            strongPlayer->setDirectProxy();
             return false;
-        }
-        WarnL << "重试播放[" << iFailedCnt << "]:" << strUrl;
-        strongPlayer->MediaPlayer::play(strUrl);
-        strongPlayer->setDirectProxy();
-        return false;
-    }, getPoller());
+        },
+        getPoller());
 }
 
 bool PlayerProxy::close(MediaSource &sender) {
-    //通知其停止推流
+    // 通知其停止推流  [AUTO-TRANSLATED:d69d10d8]
+    // Notify it to stop pushing the stream
     weak_ptr<PlayerProxy> weakSelf = dynamic_pointer_cast<PlayerProxy>(shared_from_this());
     getPoller()->async_first([weakSelf]() {
         auto strongSelf = weakSelf.lock();
@@ -188,36 +293,47 @@ float PlayerProxy::getLossRate(MediaSource &sender, TrackType type) {
     return getPacketLossRate(type);
 }
 
+TranslationInfo PlayerProxy::getTranslationInfo() {
+    return _transtalion_info;
+}
+
 void PlayerProxy::onPlaySuccess() {
     auto &on_create_media_muxer = getOnCreateMediaMuxer();
     GET_CONFIG(bool, reset_when_replay, General::kResetWhenRePlay);
     if (dynamic_pointer_cast<RtspMediaSource>(_media_src)) {
-        //rtsp拉流代理
+        // rtsp拉流代理  [AUTO-TRANSLATED:3935cf68]
+        // Rtsp stream proxy
         if (reset_when_replay || !_muxer) {
+            auto old = _option.enable_rtsp;
             _option.enable_rtsp = false;
             if (on_create_media_muxer) {
-                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = on_create_media_muxer(_tuple, getDuration(), _option);
             } else {
-                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_tuple, getDuration(), _option);
             }
+            _option.enable_rtsp = old;
         }
     } else if (dynamic_pointer_cast<RtmpMediaSource>(_media_src)) {
-        //rtmp拉流代理
+        // rtmp拉流代理  [AUTO-TRANSLATED:21173335]
+        // Rtmp stream proxy
         if (reset_when_replay || !_muxer) {
+             auto old = _option.enable_rtmp;
             _option.enable_rtmp = false;
             if (on_create_media_muxer) {
-                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = on_create_media_muxer(_tuple, getDuration(), _option);
             } else {
-                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_tuple, getDuration(), _option);
             }
+             _option.enable_rtmp = old;
         }
     } else {
-        //其他拉流代理
+        // 其他拉流代理  [AUTO-TRANSLATED:e5f2e45d]
+        // Other stream proxies
         if (reset_when_replay || !_muxer) {
             if (on_create_media_muxer) {
-                _muxer = on_create_media_muxer(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = on_create_media_muxer(_tuple, getDuration(), _option);
             } else {
-                _muxer = std::make_shared<MultiMediaSourceMuxer>(_vhost, _app, _stream_id, getDuration(), _option);
+                _muxer = std::make_shared<MultiMediaSourceMuxer>(_tuple, getDuration(), _option);
             }
         }
     }
@@ -225,27 +341,47 @@ void PlayerProxy::onPlaySuccess() {
 
     auto videoTrack = getTrack(TrackVideo, false);
     if (videoTrack) {
-        //添加视频
+        // 添加视频  [AUTO-TRANSLATED:afc7e0f7]
+        // Add video
         _muxer->addTrack(videoTrack);
-        //视频数据写入_mediaMuxer
+        // 视频数据写入_mediaMuxer  [AUTO-TRANSLATED:fc07e1c9]
+        // Write video data to _mediaMuxer
         videoTrack->addDelegate(_muxer);
     }
 
     auto audioTrack = getTrack(TrackAudio, false);
     if (audioTrack) {
-        //添加音频
+        // 添加音频  [AUTO-TRANSLATED:e08e79ce]
+        // Add audio
         _muxer->addTrack(audioTrack);
-        //音频数据写入_mediaMuxer
+        // 音频数据写入_mediaMuxer  [AUTO-TRANSLATED:69911524]
+        // Write audio data to _mediaMuxer
         audioTrack->addDelegate(_muxer);
     }
 
-    //添加完毕所有track，防止单track情况下最大等待3秒
+    // 添加完毕所有track，防止单track情况下最大等待3秒  [AUTO-TRANSLATED:8908bc01]
+    // After adding all tracks, prevent the maximum waiting time of 3 seconds in the case of a single track
     _muxer->addTrackCompleted();
 
     if (_media_src) {
-        //让_muxer对象拦截一部分事件(比如说录像相关事件)
+        // 让_muxer对象拦截一部分事件(比如说录像相关事件)  [AUTO-TRANSLATED:7d27c400]
+        // Let the _muxer object intercept some events (such as recording related events)
         _media_src->setListener(_muxer);
     }
+}
+
+int PlayerProxy::getStatus() {
+    return _live_status.load();
+}
+uint64_t PlayerProxy::getLiveSecs() {
+    if (_live_status == 0) {
+        return _live_secs + _live_ticker.elapsedTime() / 1000;
+    }
+    return _live_secs;
+}
+
+uint64_t PlayerProxy::getRePullCount() {
+    return _repull_count;
 }
 
 } /* namespace mediakit */

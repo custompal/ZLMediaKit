@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -75,17 +75,20 @@ const char *PSDecoder::onSearchPacketTail(const char *data, size_t len) {
     try {
         auto ret = ps_demuxer_input(static_cast<struct ps_demuxer_t *>(_ps_demuxer), reinterpret_cast<const uint8_t *>(data), len);
         if (ret >= 0) {
-            //解析成功全部或部分
+            // 解析成功全部或部分  [AUTO-TRANSLATED:a8085d34]
+            // Parse successful, all or part
             return data + ret;
         }
 
-        //解析失败，丢弃所有数据
+        // 解析失败，丢弃所有数据  [AUTO-TRANSLATED:e6f644d9]
+        // Parse failed, discard all data
         return data + len;
-    } catch (AssertFailedException &ex) {
+    } catch (toolkit::AssertFailedException &ex) {
         InfoL << "解析 ps 异常: bytes=" << len
               << ", exception=" << ex.what()
               << ", hex=" << hexdump(data, MIN(len, 32));
-        //触发断言，解析失败，丢弃所有数据
+        // 触发断言，解析失败，丢弃所有数据  [AUTO-TRANSLATED:b60c6db0]
+        // Trigger assertion, parse failed, discard all data
         return data + len;
     }
 }

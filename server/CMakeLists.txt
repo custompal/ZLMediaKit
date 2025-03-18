@@ -1,6 +1,6 @@
 ﻿# MIT License
 #
-# Copyright (c) 2016-2022 The ZLMediaKit project authors. All Rights Reserved.
+# Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,18 +28,25 @@ set(COMPILE_DEFINITIONS ${MK_COMPILE_DEFINITIONS})
 if(ENABLE_SERVER_LIB)
   list(APPEND COMPILE_DEFINITIONS DISABLE_MAIN)
   add_library(MediaServer STATIC ${MediaServer_SRC_LIST})
+  define_filename_macro(MediaServer)
   target_compile_definitions(MediaServer
     PRIVATE ${COMPILE_DEFINITIONS})
   target_compile_options(MediaServer
     PRIVATE ${COMPILE_OPTIONS_DEFAULT})
   target_link_libraries(MediaServer
     PRIVATE ${MK_LINK_LIBRARIES})
-  update_cached(MK_LINK_LIBRARIES MediaServer)
+  update_cached_list(MK_LINK_LIBRARIES MediaServer)
   return()
 endif()
 
-add_executable(MediaServer ${MediaServer_SRC_LIST})
-define_filename_macro(MediaServer)
+# IOS 不编译可执行程序，只做依赖库
+if(IOS)
+  add_library(MediaServer STATIC ${MediaServer_SRC_LIST})
+else()
+  add_executable(MediaServer ${MediaServer_SRC_LIST})
+  define_filename_macro(MediaServer)
+endif()
+
 target_compile_definitions(MediaServer
   PRIVATE ${COMPILE_DEFINITIONS})
 target_compile_options(MediaServer
@@ -49,6 +56,15 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   target_link_libraries(MediaServer -Wl,--start-group ${MK_LINK_LIBRARIES} -Wl,--end-group)
 else()
   target_link_libraries(MediaServer ${MK_LINK_LIBRARIES})
+endif()
+
+if(MSVC)
+  set(RESOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../resource.rc")
+  set_source_files_properties(${RESOURCE_FILE} PROPERTIES LANGUAGE RC)  
+  target_sources(MediaServer PRIVATE ${RESOURCE_FILE})
+else()
+  # Android, IOS, macOS ...
+  # CLion, GCC ...
 endif()
 
 install(TARGETS MediaServer DESTINATION ${INSTALL_PATH_RUNTIME})

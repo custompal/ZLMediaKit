@@ -13,6 +13,7 @@
 #include "Common.hpp"
 #include "NackContext.hpp"
 #include "Packet.hpp"
+#include "Crypto.hpp"
 #include "PacketQueue.hpp"
 #include "PacketSendQueue.hpp"
 #include "Statistic.hpp"
@@ -24,6 +25,7 @@ extern const std::string kPort;
 extern const std::string kTimeOutSec;
 extern const std::string kLatencyMul;
 extern const std::string kPktBufSize;
+extern const std::string kPassPhrase;
 
 class SrtTransport : public std::enable_shared_from_this<SrtTransport> {
 public:
@@ -45,7 +47,7 @@ public:
     virtual void inputSockData(uint8_t *buf, int len, struct sockaddr_storage *addr);
     virtual void onSendTSData(const Buffer::Ptr &buffer, bool flush);
 
-    std::string getIdentifier();
+    std::string getIdentifier() const;
     void unregisterSelf();
     void unregisterSelfHandshake();
 
@@ -60,6 +62,7 @@ protected:
     virtual int getLatencyMul() { return 4; };
     virtual int getPktBufSize() { return 8192; };
     virtual float getTimeOutSec(){return 5.0;};
+    virtual std::string getPassphrase() {return "";};
 
 private:
     void registerSelf();
@@ -79,17 +82,21 @@ private:
     void handleShutDown(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleDropReq(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr);
+    void handleKeyMaterialReqPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
+    void handleKeyMaterialRspPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
 
     void sendNAKPacket(std::list<PacketQueue::LostPair> &lost_list);
     void sendACKPacket();
+    void sendRejectPacket(SRT_REJECT_REASON reason, struct sockaddr_storage *addr);
     void sendLightACKPacket();
     void sendKeepLivePacket();
     void sendShutDown();
     void sendMsgDropReq(uint32_t first, uint32_t last);
+    void tryAnnounceKeyMaterial();
 
-    size_t getPayloadSize();
+    size_t getPayloadSize() const;
 
     void createTimerForCheckAlive();
 
@@ -159,28 +166,33 @@ private:
     Ticker _alive_ticker;
 
     bool _is_handleshake_finished = false;
+
+    // for encryption
+    Crypto::Ptr            _crypto;
+	Timer::Ptr             _announce_timer;
+	KeyMaterialPacket::Ptr _announce_req;
 };
 
 class SrtTransportManager {
 public:
     static SrtTransportManager &Instance();
-    SrtTransport::Ptr getItem(const std::string &key);
-    void addItem(const std::string &key, const SrtTransport::Ptr &ptr);
-    void removeItem(const std::string &key);
+    SrtTransport::Ptr getItem(const uint32_t key);
+    void addItem(const uint32_t key, const SrtTransport::Ptr &ptr);
+    void removeItem(const uint32_t key);
 
-    void addHandshakeItem(const std::string &key, const SrtTransport::Ptr &ptr);
-    void removeHandshakeItem(const std::string &key);
-    SrtTransport::Ptr getHandshakeItem(const std::string &key);
+    void addHandshakeItem(const uint32_t key, const SrtTransport::Ptr &ptr);
+    void removeHandshakeItem(const uint32_t key);
+    SrtTransport::Ptr getHandshakeItem(const uint32_t key);
 
 private:
     SrtTransportManager() = default;
 
 private:
     std::mutex _mtx;
-    std::unordered_map<std::string, std::weak_ptr<SrtTransport>> _map;
+    std::unordered_map<uint32_t , std::weak_ptr<SrtTransport>> _map;
 
     std::mutex _handshake_mtx;
-    std::unordered_map<std::string, std::weak_ptr<SrtTransport>> _handshake_map;
+    std::unordered_map<uint32_t, std::weak_ptr<SrtTransport>> _handshake_map;
 };
 
 } // namespace SRT

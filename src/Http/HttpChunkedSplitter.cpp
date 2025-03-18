@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -33,7 +33,8 @@ void HttpChunkedSplitter::onRecvContent(const char *data, size_t len) {
 ssize_t HttpChunkedSplitter::onRecvHeader(const char *data, size_t len) {
     int size;
     CHECK(sscanf(data, "%X", &size) == 1 && size >= 0);
-    //包括后面\r\n两个字节
+    // 包括后面\r\n两个字节  [AUTO-TRANSLATED:f5567007]
+    // Including the following two bytes \r\n
     return size + 2;
 }
 

@@ -1,9 +1,9 @@
 ﻿/*
- * Copyright (c) 2016 The ZLMediaKit project authors. All Rights Reserved.
+ * Copyright (c) 2016-present The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -176,7 +176,8 @@ void DevChannelHK::onPreview(DWORD dwDataType, BYTE* pBuffer, DWORD dwBufSize) {
                 break;
             }
             InfoL << "设置解码器成功！" << endl;
-            //打开音频解码, 需要码流是复合流
+            // 打开音频解码, 需要码流是复合流  [AUTO-TRANSLATED:ef6be0e4]
+            // Open audio decoding, requires the bitstream to be a composite stream
             if (!PlayM4_PlaySoundShare(m_iPlayHandle)) {
                 WarnL << "PlayM4_PlaySound:" << NET_DVR_GetLastError();
                 break;

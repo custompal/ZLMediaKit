@@ -1,9 +1,9 @@
 ﻿/*
  * Copyright (c) 2020 The ZLMediaKit project authors. All Rights Reserved.
  *
- * This file is part of ZLMediaKit(https://github.com/xia-chu/ZLMediaKit).
+ * This file is part of ZLMediaKit(https://github.com/ZLMediaKit/ZLMediaKit).
  *
- * Use of this source code is governed by MIT license that can be found in the
+ * Use of this source code is governed by MIT-like license that can be found in the
  * LICENSE file in the root of the source tree. All contributing project authors
  * may be found in the AUTHORS file in the root of the source tree.
  */
@@ -37,12 +37,14 @@ bool HlsParser::parse(const string &http_url, const string &m3u8) {
 
         if ((_is_m3u8_inner || extinf_dur != 0) && line[0] != '#') {
             segment.duration = extinf_dur;
-            segment.url = Parser::merge_url(http_url, line);
+            segment.url = Parser::mergeUrl(http_url, line);
             if (!_is_m3u8_inner) {
-                //ts按照先后顺序排序
+                // ts按照先后顺序排序  [AUTO-TRANSLATED:c34f8c9d]
+                // Sort by order of appearance
                 ts_map.emplace(index++, segment);
             } else {
-                //子m3u8按照带宽排序
+                // 子m3u8按照带宽排序  [AUTO-TRANSLATED:749cb42b]
+                // Sort sub m3u8 by bandwidth
                 ts_map.emplace(segment.bandwidth, segment);
             }
             extinf_dur = 0;
@@ -91,7 +93,8 @@ bool HlsParser::parse(const string &http_url, const string &m3u8) {
         }
 
         if (line.find("#EXT-X-ENDLIST") == 0) {
-            //点播
+            // 点播  [AUTO-TRANSLATED:a64427bc]
+            // On-demand
             _is_live = false;
             continue;
         }
