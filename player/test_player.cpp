@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
                 auto decoder = std::make_shared<FFmpegDecoder>(audioTrack);
                 auto audio_player = std::make_shared<AudioPlayer>();
                 // FFmpeg解码时已经统一转换为16位整型pcm
-                audio_player->setup(audioTrack->getAudioSampleRate(), audioTrack->getAudioChannel(), AUDIO_S16);
+                audio_player->setup(AUDIO_S16);
                 FFmpegSwr::Ptr swr;
 
                 decoder->setOnDecode([audio_player, swr](const FFmpegFrame::Ptr &frame) mutable {
