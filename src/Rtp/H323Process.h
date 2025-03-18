@@ -24,8 +24,7 @@ namespace mediakit{
 class H323RtpReceiverImp;
 
 class H323Process
-    : public mediakit::ProcessInterface
-    , public MediaSinkInterface {
+    : public mediakit::ProcessInterface {
 public:
     using Ptr = std::shared_ptr<H323Process>;
 

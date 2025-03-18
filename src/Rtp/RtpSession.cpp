@@ -30,6 +30,7 @@ const string RtpSession::kSSRC = "ssrc";
 const string RtpSession::kOnlyTrack = "only_track";
 const string RtpSession::kUdpRecvBuffer = "udp_recv_socket_buffer";
 const string RtpSession::kProcessName = "process_name";
+const string RtpSession::kRtpCheck = "1";
 
 void RtpSession::attachServer(const Server &server) {
     setParams(const_cast<Server &>(server));
@@ -133,14 +134,13 @@ void RtpSession::onRtpPacket(const char *data, size_t len) {
         _process->setOnDetach([weak_self](const SockException &ex) {
             if (auto strong_self = weak_self.lock()) {
                 strong_self->safeShutdown(ex);
+                // udp情况下延时断开连接(等待超时自动关闭)，防止频繁创建销毁RtpSession对象
+                WarnP(strong_self.get()) << ex.what();
+                // strong_self->_delay_close = true;
+                return;
             }
-            // udp情况下延时断开连接(等待超时自动关闭)，防止频繁创建销毁RtpSession对象
-            WarnP(this) << ex.what();
-            _delay_close = true;
-            return;
-        }
-        _process->setOnlyAudio(_only_audio);
-        _process->setDelegate(dynamic_pointer_cast<RtpSession>(shared_from_this()));
+        });
+        //_process->setDelegate(dynamic_pointer_cast<RtpSession>(shared_from_this()));
         assert(!_process->getProcess());
         if (0 == strcasecmp(_process_name.c_str(), "GB28181")) {
             _process->setProcess(std::make_shared<mediakit::GB28181Process>(_process->getMediaInfo(), _process.get()));
