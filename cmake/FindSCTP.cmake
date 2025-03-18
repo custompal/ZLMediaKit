@@ -6,15 +6,23 @@
 #  SCTP_LIBRARIES    - The mbedtls library
 
 
+if(NOT _SCTP_ROOT_PATHS)
+set(_SCTP_ROOT_PATHS ${CMAKE_INSTALL_PREFIX})
+endif()
+
 #find Mbedtls
 FIND_PATH(
     SCTP_INCLUDE_DIRS
     NAMES usrsctp.h
+    HINTS ${_SCTP_ROOT_PATHS}  ${SCTP_PREFIX}
+    PATH_SUFFIXES include
 )
 
 FIND_LIBRARY(
     SCTP_LIBRARIES
     NAMES usrsctp
+    HINTS ${_SCTP_ROOT_PATHS} ${SCTP_PREFIX}
+    PATH_SUFFIXES bin lib
 )
 
 message(STATUS "SCTP LIBRARIES: " ${SCTP_LIBRARIES})

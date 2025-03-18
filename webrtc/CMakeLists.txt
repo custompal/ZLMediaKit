@@ -23,7 +23,8 @@
 
 # 查找 srtp 是否安装
 find_package(SRTP QUIET)
-if(NOT SRTP_FOUND OR NOT ENABLE_OPENSSL)
+#if(NOT SRTP_FOUND OR NOT ENABLE_OPENSSL)
+if(NOT SRTP_LIBRARIES OR NOT ENABLE_OPENSSL)
   set(ENABLE_WEBRTC OFF)
   message(WARNING "srtp 未找到, WebRTC 相关功能打开失败")
   return()
@@ -40,7 +41,8 @@ set(INCLUDE_DIRECTORIES)
 
 if(ENABLE_SCTP)
 find_package(SCTP QUIET)
-if(SCTP_FOUND)
+#if(SCTP_FOUND)
+if(SCTP_LIBRARIES)
   message(STATUS "found library: ${SCTP_INCLUDE_DIRS} ${SCTP_LIBRARIES}")
   include_directories(SYSTEM ${SCTP_INCLUDE_DIRS})
   # TODO: 避免暴露 SCTP 到 WebRTC 模块外
