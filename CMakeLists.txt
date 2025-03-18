@@ -44,7 +44,7 @@ option(ENABLE_JEMALLOC_STATIC "Enable static linking to the jemalloc library" OF
 option(ENABLE_JEMALLOC_DUMP "Enable jemalloc to dump malloc statistics" OFF)
 option(ENABLE_MEM_DEBUG "Enable Memory Debug" OFF)
 option(ENABLE_MP4 "Enable MP4" ON)
-option(ENABLE_MSVC_MT "Enable MSVC Mt/Mtd lib" ON)
+option(ENABLE_MSVC_MT "Enable MSVC Mt/Mtd lib" OFF)
 option(ENABLE_MYSQL "Enable MySQL" OFF)
 option(ENABLE_OPENSSL "Enable OpenSSL" ON)
 option(ENABLE_PLAYER "Enable Player" ON)
@@ -58,8 +58,10 @@ option(ENABLE_WEBRTC "Enable WebRTC" ON)
 option(ENABLE_X264 "Enable x264" OFF)
 option(ENABLE_WEPOLL "Enable wepoll" ON)
 option(ENABLE_VIDEOSTACK "Enable video stack" OFF)
-option(DISABLE_REPORT "Disable report to report.zlmediakit.com" OFF)
+option(DISABLE_REPORT "Disable report to report.zlmediakit.com" ON)
 option(USE_SOLUTION_FOLDERS "Enable solution dir supported" ON)
+option(OPENSSL_USE_STATIC_LIBS "Enable link static openssl libraries" OFF)
+option(AUTO_FIND_OPENSSL "Find openssl by findpackage" OFF)
 ##############################################################################
 # 设置socket默认缓冲区大小为256k.如果设置为0则不设置socket的默认缓冲区大小,使用系统内核默认值(设置为0仅对linux有效)
 # Set the default buffer size of the socket to 256k. If set to 0, the default buffer size of the socket will not be set,
@@ -361,7 +363,7 @@ endif()
 # 下载jemalloc后静态编译
 # Static compilation after downloading jemalloc
 set(DEP_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdpart/external-${CMAKE_SYSTEM_NAME})
-if(ENABLE_JEMALLOC_STATIC)
+if(false AND ENABLE_JEMALLOC_STATIC)
   if(NOT EXISTS ${DEP_ROOT_DIR})
     file(MAKE_DIRECTORY ${DEP_ROOT_DIR})
   endif()
@@ -380,8 +382,9 @@ endif()
 
 # 默认链接 jemalloc 库避免内存碎片
 # Link the jemalloc library by default to avoid memory fragmentation
-find_package(JEMALLOC QUIET)
-if(JEMALLOC_FOUND)
+#find_package(JEMALLOC QUIET)
+#if(JEMALLOC_FOUND)
+if(UNIX AND ENABLE_JEMALLOC_STATIC)
   message(STATUS "found library: ${JEMALLOC_LIBRARIES}")
   include_directories(${JEMALLOC_INCLUDE_DIR})
   update_cached_list(MK_LINK_LIBRARIES ${JEMALLOC_LIBRARIES})
@@ -395,8 +398,11 @@ endif()
 
 # 查找 openssl 是否安装
 # find openssl installed
-find_package(OpenSSL QUIET)
-if(OPENSSL_FOUND AND ENABLE_OPENSSL)
+if(AUTO_FIND_OPENSSL)
+  find_package(OpenSSL QUIET)
+endif()
+#if(OPENSSL_FOUND AND ENABLE_OPENSSL)
+if(OPENSSL_LIBRARIES AND ENABLE_OPENSSL)
   message(STATUS "found library: ${OPENSSL_LIBRARIES}, ENABLE_OPENSSL defined")
   include_directories(${OPENSSL_INCLUDE_DIR})
   update_cached_list(MK_COMPILE_DEFINITIONS ENABLE_OPENSSL)
