@@ -57,7 +57,7 @@ else()
 endif()
 
 if(MSVC)
-  set(RESOURCE_FILE "${CMAKE_SOURCE_DIR}/resource.rc")
+  set(RESOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../resource.rc")
   set_source_files_properties(${RESOURCE_FILE} PROPERTIES LANGUAGE RC)  
   target_sources(MediaServer PRIVATE ${RESOURCE_FILE})
 else()
