@@ -133,6 +133,10 @@ void HlsPlayer::fetchSegment() {
         if (!(*this)[Client::kNetAdapter].empty()) {
             _http_ts_player->setNetAdapter((*this)[Client::kNetAdapter]);
         }
+    } else {
+        // 每次请求新的ts片段时重置HttpTSPlayer状态
+        _http_ts_player->clear();
+        _http_ts_player->setProxyUrl((*this)[Client::kProxyUrl]);
     }
 
     Ticker ticker;
@@ -193,6 +197,11 @@ void HlsPlayer::fetchSegment() {
     // The ts segment must be downloaded within 2-5 times its duration
     _http_ts_player->setCompleteTimeout(_timeout_multiple * duration * 1000);
     _http_ts_player->sendRequest(url);
+}
+
+void HlsPlayer::onRecv(const Buffer::Ptr &buf) {
+    onFlushRecvTotalBytes(getIdentifier(), getSock()->getRecvTotalBytes());
+    TcpClientWithSSL<HttpClient>::onRecv(buf);
 }
 
 bool HlsPlayer::onParsed(bool is_m3u8_inner, int64_t sequence, const map<int, ts_segment> &ts_map) {

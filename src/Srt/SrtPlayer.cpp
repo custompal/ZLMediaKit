@@ -52,6 +52,11 @@ void SrtPlayer::speed(float speed) {
     DebugL;
 }
 
+void SrtPlayer::inputSockData(uint8_t *buf, int len, struct sockaddr *addr) {
+    onFlushRecvTotalBytes(getIdentifier(), getSock()->getRecvTotalBytes());
+    SrtCaller::inputSockData(buf, len, addr);
+}
+
 void SrtPlayer::onHandShakeFinished() {
     SrtCaller::onHandShakeFinished();
     onResult(SockException(Err_success, "srt play success"));
