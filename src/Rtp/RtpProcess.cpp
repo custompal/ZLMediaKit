@@ -111,6 +111,7 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
     if (!_auth_err.empty()) {
         throw toolkit::SockException(toolkit::Err_other, _auth_err);
     }
+    auto header = (RtpHeader *) data;
     if (_sock != sock) {
         // 第一次运行本函数  [AUTO-TRANSLATED:a1d7ac17]
         // First time running this function
@@ -118,7 +119,7 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
         _sock = sock;
         _addr.reset(new sockaddr_storage(*((sockaddr_storage *)addr)));
         if (first) {
-            emitOnPublish();
+            emitOnPublish(ntohl(header->ssrc));
             _cache_ticker.resetTime();
         }
     }
@@ -135,7 +136,6 @@ bool RtpProcess::inputRtp(bool is_udp, const Socket::Ptr &sock, const char *data
         _process = std::make_shared<GB28181Process>(_media_info, this);
     }
 
-    auto header = (RtpHeader *) data;
     onRtp(ntohs(header->seq), ntohl(header->stamp), 0/*不发送sr,所以可以设置为0*/ , 90000/*ps/ts流时间戳按照90K采样率*/, len);
 
     GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
@@ -223,21 +223,24 @@ bool RtpProcess::alive() {
             // Pause the RTP timeout detection for a maximum of 5 minutes, because the NAT mapping validity period is generally not very long.
             _stop_rtp_check = false;
         } else {
+    // if (_pause_timeout) {
+    //     if (_last_check_alive.elapsedTime() < _pause_seconds * 1000) {
             return true;
         }
+        // 最多暂停_pause_seconds秒的rtp超时检测，因为NAT映射有效期一般不会太长
+        _pause_timeout = false;
     }
 
     _last_check_alive.resetTime();
     GET_CONFIG(uint64_t, timeoutSec, RtpProxy::kTimeoutSec)
-    if (_last_frame_time.elapsedTime() / 1000 < timeoutSec) {
-        return true;
-    }
-    return false;
+    return _last_frame_time.elapsedTime() < timeoutSec * 1000;
 }
 
-void RtpProcess::setStopCheckRtp(bool is_check){
-    _stop_rtp_check = is_check;
-    if (!is_check) {
+void RtpProcess::pauseRtpTimeout(bool pause, uint32_t pause_seconds) {
+    _pause_timeout = pause;
+    // 默认5分钟恢复超时监测
+    _pause_seconds = pause_seconds ? pause_seconds : 300;
+    if (!pause) {
         _last_frame_time.resetTime();
     }
 }
@@ -285,15 +288,15 @@ string RtpProcess::getIdentifier() const {
     return _media_info.stream;
 }
 
-void RtpProcess::emitOnPublish() {
+void RtpProcess::emitOnPublish(uint32_t ssrc) {
     weak_ptr<RtpProcess> weak_self = shared_from_this();
-    Broadcast::PublishAuthInvoker invoker = [weak_self](const string &err, const ProtocolOption &option) {
+    Broadcast::PublishAuthInvoker invoker = [weak_self, ssrc](const string &err, const ProtocolOption &option) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
             return;
         }
         auto poller = strong_self->getOwnerPoller(MediaSource::NullMediaSource());
-        poller->async([weak_self, err, option]() {
+        poller->async([weak_self, err, option, ssrc]() {
             auto strong_self = weak_self.lock();
             if (!strong_self) {
                 return;
@@ -312,7 +315,7 @@ void RtpProcess::emitOnPublish() {
                 }
                 strong_self->_muxer->setMediaListener(strong_self);
                 strong_self->doCachedFunc();
-                InfoP(strong_self) << "允许RTP推流";
+                InfoP(strong_self) << "允许RTP推流，ssrc: " << printSSRC(ssrc);
             } else {
                 strong_self->_auth_err = err;
                 WarnP(strong_self) << "禁止RTP推流:" << err;
@@ -349,6 +352,13 @@ RtpProcess::Ptr RtpProcess::getRtpProcess(mediakit::MediaSource &sender) const {
 bool RtpProcess::close(mediakit::MediaSource &sender) {
     onDetach(SockException(Err_shutdown, "close media"));
     return true;
+}
+
+bool RtpProcess::pause(MediaSource &sender, bool pause) {
+    if (_sock) {
+        _sock->enableRecv(!pause);
+    }
+    return static_cast<bool>(_sock);
 }
 
 toolkit::EventPoller::Ptr RtpProcess::getOwnerPoller(MediaSource &sender) {

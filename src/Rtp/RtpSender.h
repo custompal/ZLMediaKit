@@ -40,7 +40,7 @@ public:
      
      * [AUTO-TRANSLATED:c31bd9b3]
      */
-    void startSend(const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
+    void startSend(const MediaSourceEvent &sender, const MediaSourceEvent::SendRtpArgs &args, const std::function<void(uint16_t local_port, const toolkit::SockException &ex)> &cb);
 
     /**
      * 输入帧数据
@@ -99,6 +99,11 @@ public:
      */
     void setOnClose(std::function<void(const toolkit::SockException &ex)> on_close);
 
+    size_t getSendSpeed() const;
+    size_t getRecvSpeed() const;
+    size_t getRecvTotalBytes() const;
+    size_t getSendTotalBytes() const;
+
 private:
     // 合并写输出  [AUTO-TRANSLATED:23544836]
     // Merge write output
@@ -130,6 +135,8 @@ private:
     //重连相关
     int _retry_count = 0;
     toolkit::Timer::Ptr _connect_timer;
+
+    std::weak_ptr<MultiMediaSourceMuxer> _muxer;
 };
 
 }//namespace mediakit
