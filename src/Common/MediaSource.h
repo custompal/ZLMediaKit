@@ -178,6 +178,10 @@ public:
         std::string recv_stream_app;
         std::string recv_stream_vhost;
 
+        // rtp tcp模式发送时busy时, origin 接收限流, 默认不启用
+        bool enable_origin_recv_limit = false;
+    };
+
     // 开始发送ps-rtp  [AUTO-TRANSLATED:a51796fa]
     // Start sending ps-rtp
     virtual void startSendRtp(MediaSource &sender, const SendRtpArgs &args, const std::function<void(uint16_t, const toolkit::SockException &)> cb) { cb(0, toolkit::SockException(toolkit::Err_other, "not implemented"));};
@@ -186,9 +190,6 @@ public:
     virtual bool stopSendRtp(MediaSource &sender, const std::string &ssrc) {return false; }
     // 暂停/恢复发送ps-rtp
     virtual bool pauseSendRtp(MediaSource &sender, const std::string &ssrc, bool pause) { return false; }
-        // rtp tcp模式发送时busy时, origin 接收限流, 默认不启用
-        bool enable_origin_recv_limit = false;
-    };
 
 private:
     toolkit::Timer::Ptr _async_close_timer;
