@@ -25,6 +25,7 @@
 #include "Http/WebSocketSession.h"
 #include "Rtp/RtpServer.h"
 #include "WebApi.h"
+#include "ExtendWebApi.h"
 #include "WebHook.h"
 
 #if defined(ENABLE_WEBRTC)
@@ -416,6 +417,7 @@ int start_main(int argc,char *argv[]) {
 #endif //defined(ENABLE_SRT)
 
         installWebApi();
+        installExtendWebApi();
         InfoL << "已启动http api 接口";
         installWebHook();
         InfoL << "已启动http hook 接口";
@@ -518,6 +520,7 @@ int start_main(int argc,char *argv[]) {
 #endif
         sem.wait();
     }
+    unInstallExtendWebApi();
     unInstallWebApi();
     unInstallWebHook();
     onProcessExited();
