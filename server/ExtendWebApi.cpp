@@ -70,7 +70,7 @@ static string zlmStatToPingoXml(const list<MediaSource::Ptr> &ml) {
 
     // 2.2. 拼接
     xml += "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n";
-    xml += "<?xml-stylesheet type=\"text/xsl\" href=\"json.xsl\" ?>\n";
+    xml += "<?xml-stylesheet type=\"text/xsl\" href=\"/json.xsl\" ?>\n";
     xml += "<rtmp>\n";
     xml += " <nginx_version>202504081</nginx_version>\n";
     xml += " <nginx_rtmp_version>202504081</nginx_rtmp_version>\n";
