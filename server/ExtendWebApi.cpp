@@ -151,7 +151,7 @@ void installExtendWebApi() {
         list<MediaSource::Ptr> lst;
         MediaSource::for_each_media([&](const MediaSource::Ptr &media) {
             lst.emplace_back(media);
-        }, allArgs["schema"].empty() ? "rtmp" : allArgs["schema"], allArgs["vhost"], allArgs["app"].empty() ? "dz" : allArgs["app"], allArgs["stream"]);
+        }, allArgs["schema"].empty() ? "rtmp" : allArgs["schema"], allArgs["vhost"], allArgs["app"], allArgs["stream"]);
 
         // 2. 构造XML字符串
         string xml = zlmStatToPingoXml(lst);
