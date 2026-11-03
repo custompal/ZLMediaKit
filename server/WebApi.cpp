@@ -51,6 +51,7 @@
 
 #if defined(ENABLE_RTPPROXY)
 #include "Rtp/RtpServer.h"
+#include "Rtp/RtpSession.h"
 #endif
 
 #ifdef ENABLE_WEBRTC
@@ -1214,6 +1215,12 @@ void installWebApi() {
             jsession["id"] = id;
             jsession["type"] = session->getSock()->sockType() == SockNum::Sock_TCP ? "tcp" : "udp";
             jsession["typeid"] = toolkit::demangle(typeid(*session).name());
+
+            //只有RtpSession才有ssrc成员
+            auto rtp_session = std::dynamic_pointer_cast<RtpSession>(session);
+            if (rtp_session) {
+                jsession["ssrc"] = rtp_session->ssrc();
+            }
             val["data"].append(jsession);
         });
     });

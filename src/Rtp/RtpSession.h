@@ -37,6 +37,7 @@ public:
     void setParams(toolkit::mINI &ini);
     void attachServer(const toolkit::Server &server) override;
     void setRtpProcess(RtpProcess::Ptr process);
+    uint32_t ssrc();
 
 protected:
     // 收到rtp回调  [AUTO-TRANSLATED:446b2cda]

@@ -150,6 +150,10 @@ void RtpSession::onRtpPacket(const char *data, size_t len) {
     _ticker.resetTime();
 }
 
+uint32_t RtpSession::ssrc() {
+    return _ssrc;
+}
+
 static const char *findSSRC(const char *data, ssize_t len, uint32_t ssrc) {
     // rtp前面必须预留两个字节的长度字段  [AUTO-TRANSLATED:2af4e647]
     // Two bytes of length field must be reserved before rtp
